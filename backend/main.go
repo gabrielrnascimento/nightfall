@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"log"
 	"net"
 	"net/http"
@@ -21,22 +20,16 @@ func main() {
 }
 
 func run() error {
-	if len(os.Args) < 2 {
-		return errors.New("please provide an address to listen on as the first argument")
-	}
-
-	l, err := net.Listen("tcp", os.Args[1])
+	l, err := net.Listen("tcp", "127.0.0.1:8080")
 	if err != nil {
 		return err
 	}
 	log.Printf("listening on ws://%v", l.Addr())
 
 	s := &http.Server{
-		Handler: echoServer{
+		Handler: simpleServer{
 			logf: log.Printf,
 		},
-		ReadTimeout:  time.Second * 10,
-		WriteTimeout: time.Second * 10,
 	}
 	errc := make(chan error, 1)
 	go func() {

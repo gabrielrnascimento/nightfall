@@ -2,51 +2,86 @@ package main
 
 import (
 	"context"
+	"errors"
 	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/coder/websocket"
-	"github.com/coder/websocket/wsjson"
 )
 
-func Test_echoServer(t *testing.T) {
-	t.Parallel()
+func Test_simpleServer(t *testing.T) {
+	t.Run("ping", func(t *testing.T) {
+		t.Parallel()
 
-	s := httptest.NewServer(echoServer{
-		logf: t.Logf,
-	})
-	defer s.Close()
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-	defer cancel()
-
-	c, _, err := websocket.Dial(ctx, s.URL, &websocket.DialOptions{
-		Subprotocols: []string{"echo"},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer c.Close(websocket.StatusInternalError, "the sky is falling")
-
-	for i := range 5 {
-		err = wsjson.Write(ctx, c, map[string]int{
-			"i": i,
+		s := httptest.NewServer(simpleServer{
+			logf: t.Logf,
 		})
+		defer s.Close()
+
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+		defer cancel()
+
+		c, _, err := websocket.Dial(ctx, s.URL, &websocket.DialOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer c.Close(websocket.StatusInternalError, "the sky is falling")
+
+		err = c.Write(ctx, websocket.MessageText, []byte("ping"))
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		v := map[string]int{}
-		err = wsjson.Read(ctx, c, &v)
+		_, bytes, err := c.Read(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := string(bytes)
+		want := "pong"
+
+		if got != want {
+			t.Fatalf("got %v want %v", got, want)
+		}
+
+		c.Close(websocket.StatusNormalClosure, "")
+	})
+
+	t.Run("noResponse", func(t *testing.T) {
+		t.Parallel()
+
+		s := httptest.NewServer(simpleServer{
+			logf: t.Logf,
+		})
+		defer s.Close()
+
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+		defer cancel()
+
+		c, _, err := websocket.Dial(ctx, s.URL, &websocket.DialOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer c.Close(websocket.StatusInternalError, "the sky is falling")
+
+		err = c.Write(ctx, websocket.MessageText, []byte("hello"))
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		if v["i"] != i {
-			t.Fatalf("expected %v but got %v", i, v)
-		}
-	}
+		// Test that server doesn't respond to non-ping messages
+		// Use a short timeout to verify no message is received
+		readCtx, readCancel := context.WithTimeout(context.Background(), time.Second*1)
+		defer readCancel()
 
-	c.Close(websocket.StatusNormalClosure, "")
+		_, _, err = c.Read(readCtx)
+		if err == nil {
+			t.Fatal("expected timeout error, but received a message")
+		}
+		if !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("expected context.DeadlineExceeded, got %v", err)
+		}
+
+		c.Close(websocket.StatusNormalClosure, "")
+	})
 }

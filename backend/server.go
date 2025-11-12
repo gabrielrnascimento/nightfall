@@ -3,70 +3,51 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/http"
-	"time"
 
 	"github.com/coder/websocket"
-	"golang.org/x/time/rate"
 )
 
-type echoServer struct {
+type simpleServer struct {
 	logf func(f string, v ...any)
 }
 
-func (s echoServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	c, err := websocket.Accept(w, r, &websocket.AcceptOptions{
-		Subprotocols: []string{"echo"},
-	})
+func (s simpleServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	c, err := websocket.Accept(w, r, &websocket.AcceptOptions{})
 	if err != nil {
 		s.logf("%v", err)
 		return
 	}
 	defer c.CloseNow()
+	s.logf("client connected from %v", r.RemoteAddr)
 
-	if c.Subprotocol() != "echo" {
-		c.Close(websocket.StatusPolicyViolation, "client must speak the echo subprotocol")
-		return
-	}
-
-	l := rate.NewLimiter(rate.Every(time.Millisecond*100), 10)
+	ctx := r.Context()
 	for {
-		err = echo(c, l)
+		err = handleMessage(ctx, c)
 		if websocket.CloseStatus(err) == websocket.StatusNormalClosure {
+			s.logf("client disconnected normally from %v", r.RemoteAddr)
 			return
 		}
 		if err != nil {
-			s.logf("failed to echo with %v: %v", r.RemoteAddr, err)
+			s.logf("client disconnected with error from %v", r.RemoteAddr)
 			return
 		}
 	}
 }
 
-func echo(c *websocket.Conn, l *rate.Limiter) error {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
-
-	err := l.Wait(ctx)
+func handleMessage(ctx context.Context, c *websocket.Conn) error {
+	typ, content, err := c.Read(ctx)
 	if err != nil {
 		return err
 	}
 
-	typ, r, err := c.Reader(ctx)
-	if err != nil {
-		return err
+	message := string(content)
+	if message == "ping" {
+		if err := c.Write(ctx, typ, []byte("pong")); err != nil {
+			return err
+		}
 	}
 
-	w, err := c.Writer(ctx, typ)
-	if err != nil {
-		return err
-	}
-
-	_, err = io.Copy(w, r)
-	if err != nil {
-		return fmt.Errorf("failed to io.Copy: %w", err)
-	}
-
-	err = w.Close()
-	return err
+	fmt.Printf("message received. type: %v - content: %v\n", typ, message)
+	return nil
 }
