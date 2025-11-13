@@ -13,7 +13,12 @@ type simpleServer struct {
 }
 
 func (s simpleServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	c, err := websocket.Accept(w, r, &websocket.AcceptOptions{})
+	c, err := websocket.Accept(w, r, &websocket.AcceptOptions{
+		OriginPatterns: []string{
+			"http://127.0.0.1:3000",
+			"http://localhost:3000",
+		},
+	})
 	if err != nil {
 		s.logf("%v", err)
 		return
