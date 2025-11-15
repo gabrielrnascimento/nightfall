@@ -1,21 +1,25 @@
-let socket = null;
+let socket: WebSocket | null = null;
 
-const statusEl = document.getElementById("status");
-const logEl = document.getElementById("log");
-const wsUrlEl = document.getElementById("wsUrl");
-const connectBtn = document.getElementById("connectBtn");
-const disconnectBtn = document.getElementById("disconnectBtn");
-const messageInput = document.getElementById("messageInput");
-const sendBtn = document.getElementById("sendBtn");
+const statusEl = document.getElementById("status") as HTMLElement;
+const logEl = document.getElementById("log") as HTMLElement;
+const wsUrlEl = document.getElementById("wsUrl") as HTMLInputElement;
+const connectBtn = document.getElementById("connectBtn") as HTMLButtonElement;
+const disconnectBtn = document.getElementById(
+  "disconnectBtn"
+) as HTMLButtonElement;
+const messageInput = document.getElementById(
+  "messageInput"
+) as HTMLInputElement;
+const sendBtn = document.getElementById("sendBtn") as HTMLButtonElement;
 
-function log(message) {
+function log(message: string) {
   const div = document.createElement("div");
   div.textContent = message;
   logEl.appendChild(div);
   logEl.scrollTop = logEl.scrollHeight;
 }
 
-function setStatus(text) {
+function setStatus(text: string) {
   statusEl.innerHTML = "Status: <string>" + text + "</strong>";
 }
 
@@ -47,7 +51,7 @@ connectBtn.onclick = function () {
 
   socket.addEventListener("error", (event) => {
     log("[error] See console for details");
-    console.error("WebSocket error: ", error);
+    console.error("WebSocket error: ", event);
   });
 };
 
