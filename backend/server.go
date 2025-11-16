@@ -176,14 +176,21 @@ func (s simpleServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
 
-	go client.writePump(ctx)
+	errChan := make(chan error, 1)
 
-	err = client.readPump(ctx)
+	go func() {
+		errChan <- client.readPump(ctx)
+	}()
 
-	if websocket.CloseStatus(err) == websocket.StatusNormalClosure {
+	go func() {
+		client.writePump(ctx)
+	}()
+
+	err = <-errChan
+
+	if err == nil || websocket.CloseStatus(err) == websocket.StatusNormalClosure {
 		s.logf("client disconnected normally from %v", r.RemoteAddr)
-	}
-	if err != nil {
+	} else {
 		s.logf("client disconnected with error from %v", r.RemoteAddr)
 	}
 }
