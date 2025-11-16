@@ -10,6 +10,10 @@ import (
 	"github.com/coder/websocket"
 )
 
+type Envelope struct {
+	Type string `json:"type"`
+}
+
 type Client struct {
 	conn *websocket.Conn
 	send chan []byte
@@ -18,8 +22,6 @@ type Client struct {
 }
 
 func (c *Client) writePump(ctx context.Context) {
-	defer c.conn.Close(websocket.StatusAbnormalClosure, "")
-
 	for {
 		select {
 		case message, ok := <-c.send:
@@ -70,37 +72,103 @@ func (c *Client) readPump(ctx context.Context) error {
 
 func (c *Client) handleMessage(content []byte) error {
 	if c.name == "" {
-		var joinMsg JoinMessage
-		if err := json.Unmarshal(content, &joinMsg); err != nil {
+		err := c.handleJoin(content)
+		if err != nil {
 			return err
 		}
-
-		if joinMsg.Type != "join" || joinMsg.Name == "" || joinMsg.Room == "" {
-			return fmt.Errorf("invalid join message")
-		}
-
-		c.name = joinMsg.Name
-		c.room = joinMsg.Room
-
-		hub.mutex.Lock()
-		room, exists := hub.rooms[joinMsg.Room]
-		if !exists {
-			room = &Room{
-				name:    joinMsg.Room,
-				clients: make(map[*Client]bool),
-			}
-			hub.rooms[joinMsg.Room] = room
-		}
-		hub.mutex.Unlock()
-
-		room.addClient(c)
-
-		notification := fmt.Sprintf(`{"type":"user_joined","name":"%s"}`, c.name)
-		room.broadcast([]byte(notification), c)
-
 		return nil
 	}
 
+	var env Envelope
+	if err := json.Unmarshal(content, &env); err != nil {
+		return fmt.Errorf("invalid message: %w", err)
+	}
+
+	switch env.Type {
+	case "join":
+		return c.handleJoin(content)
+	case "leave":
+		return c.handleLeave(content)
+	default:
+		return fmt.Errorf("unknown message type: %s", env.Type)
+	}
+}
+
+type JoinMessage struct {
+	Type string `json:"type"`
+	Name string `json:"name"`
+	Room string `json:"room"`
+}
+
+func (c *Client) handleJoin(content []byte) error {
+	var joinMsg JoinMessage
+	if err := json.Unmarshal(content, &joinMsg); err != nil {
+		return err
+	}
+
+	if joinMsg.Type != "join" || joinMsg.Name == "" || joinMsg.Room == "" {
+		return fmt.Errorf("invalid join message")
+	}
+
+	if c.room != "" {
+		hub.mutex.RLock()
+		room, exists := hub.rooms[c.room]
+		hub.mutex.RUnlock()
+		if exists {
+			room.removeClient(c)
+		}
+	}
+
+	c.name = joinMsg.Name
+	c.room = joinMsg.Room
+
+	hub.mutex.Lock()
+	room, exists := hub.rooms[joinMsg.Room]
+	if !exists {
+		room = &Room{
+			name:    joinMsg.Room,
+			clients: make(map[*Client]bool),
+		}
+		hub.rooms[joinMsg.Room] = room
+	}
+	hub.mutex.Unlock()
+
+	room.addClient(c)
+
+	notification := fmt.Sprintf(`{"type":"user_joined","name":"%s"}`, c.name)
+	room.broadcast([]byte(notification), c)
+
+	welcomeMsg := fmt.Sprintf(`{"type": "welcome", "message": "welcome, %s, you just joined %s room"}`, c.name, room.name)
+	c.send <- []byte(welcomeMsg)
+
+	return nil
+}
+
+type LeaveMessage struct {
+	Type string `json:"type"`
+}
+
+func (c *Client) handleLeave(content []byte) error {
+	var msg LeaveMessage
+	if err := json.Unmarshal(content, &msg); err != nil {
+		return err
+	}
+
+	if c.room != "" {
+		hub.mutex.RLock()
+		room, exists := hub.rooms[c.room]
+		hub.mutex.RUnlock()
+		if exists {
+			room.removeClient(c)
+			leaveMsg := fmt.Sprintf(`{"type":"user_left","name":"%s"}`, c.name)
+			room.broadcast([]byte(leaveMsg), nil)
+
+			byeMsg := fmt.Sprintf(`{"type": "bye","message":"you left the %s room"}`, room.name)
+			c.send <- []byte(byeMsg)
+		}
+	}
+
+	c.room = ""
 	return nil
 }
 
@@ -144,12 +212,6 @@ var hub = &Hub{
 	rooms: make(map[string]*Room),
 }
 
-type JoinMessage struct {
-	Type string `json:"type"`
-	Name string `json:"name"`
-	Room string `json:"room"`
-}
-
 type simpleServer struct {
 	logf func(f string, v ...any)
 }
@@ -191,6 +253,6 @@ func (s simpleServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err == nil || websocket.CloseStatus(err) == websocket.StatusNormalClosure {
 		s.logf("client disconnected normally from %v", r.RemoteAddr)
 	} else {
-		s.logf("client disconnected with error from %v", r.RemoteAddr)
+		s.logf("client disconnected with error from %v %v", r.RemoteAddr, err)
 	}
 }
