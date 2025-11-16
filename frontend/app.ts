@@ -7,6 +7,10 @@ const connectBtn = document.getElementById("connectBtn") as HTMLButtonElement;
 const disconnectBtn = document.getElementById(
   "disconnectBtn"
 ) as HTMLButtonElement;
+const nameInput = document.getElementById("nameInput") as HTMLInputElement;
+const roomInput = document.getElementById("roomInput") as HTMLInputElement;
+const joinBtn = document.getElementById("joinBtn") as HTMLButtonElement;
+const leaveBtn = document.getElementById("leaveBtn") as HTMLButtonElement;
 const messageInput = document.getElementById(
   "messageInput"
 ) as HTMLInputElement;
@@ -20,10 +24,10 @@ function log(message: string) {
 }
 
 function setStatus(text: string) {
-  statusEl.innerHTML = "Status: <string>" + text + "</strong>";
+  statusEl.innerHTML = "Status: <strong>" + text + "</strong>";
 }
 
-connectBtn.onclick = function () {
+function connect() {
   const url = wsUrlEl.value.trim();
   if (!url) return;
 
@@ -34,11 +38,22 @@ connectBtn.onclick = function () {
     log("[open] Connected to " + url);
     connectBtn.disabled = true;
     disconnectBtn.disabled = false;
+    joinBtn.disabled = false;
+    leaveBtn.disabled = true;
     sendBtn.disabled = false;
   });
 
   socket.addEventListener("message", (event) => {
     log("[received] " + event.data);
+    const message = JSON.parse(event.data);
+    if (message.type === "welcome") {
+      joinBtn.disabled = true;
+      leaveBtn.disabled = false;
+    }
+    if (message.type === "bye") {
+      joinBtn.disabled = false;
+      leaveBtn.disabled = true;
+    }
   });
 
   socket.addEventListener("close", (event) => {
@@ -46,6 +61,8 @@ connectBtn.onclick = function () {
     log("[close] Code: " + event.code + ", reason: " + event.reason);
     connectBtn.disabled = false;
     disconnectBtn.disabled = true;
+    joinBtn.disabled = true;
+    leaveBtn.disabled = true;
     sendBtn.disabled = true;
   });
 
@@ -53,6 +70,10 @@ connectBtn.onclick = function () {
     log("[error] See console for details");
     console.error("WebSocket error: ", event);
   });
+}
+
+connectBtn.onclick = function () {
+  connect();
 };
 
 disconnectBtn.onclick = function () {
@@ -61,14 +82,57 @@ disconnectBtn.onclick = function () {
   }
 };
 
+joinBtn.onclick = function () {
+  const name = nameInput.value;
+  const room = roomInput.value;
+
+  if (!name || !room || !socket || socket.readyState !== WebSocket.OPEN) return;
+
+  const joinMessage: JoinMessage = {
+    type: "join",
+    name,
+    room,
+  };
+
+  socket.send(JSON.stringify(joinMessage));
+  log("[sent] " + JSON.stringify(joinMessage));
+};
+
+leaveBtn.onclick = function () {
+  const leaveMessage: LeaveMessage = {
+    type: "leave",
+  };
+  if (!socket || socket.readyState !== WebSocket.OPEN) return;
+  socket.send(JSON.stringify(leaveMessage));
+  log("[sent] " + JSON.stringify(leaveMessage));
+};
+
 sendBtn.onclick = function () {
+  sendMessage();
+};
+
+messageInput.addEventListener("keydown", function (e) {
+  if (e.key === "Enter") sendMessage();
+});
+
+window.addEventListener("load", function () {
+  connect();
+});
+
+type JoinMessage = {
+  type: string;
+  name: string;
+  room: string;
+};
+
+type LeaveMessage = {
+  type: string;
+};
+
+function sendMessage() {
   const msg = messageInput.value;
   if (!msg || !socket || socket.readyState !== WebSocket.OPEN) return;
   socket.send(msg);
   log("[sent] " + msg);
   messageInput.value = "";
-};
-
-messageInput.addEventListener("keydown", function (e) {
-  if (e.key === "Enter") sendBtn.click();
-});
+}
