@@ -135,11 +135,11 @@ func (c *Client) handleJoin(content []byte) error {
 
 	room.addClient(c)
 
-	notification := fmt.Sprintf(`{"type":"user_joined","name":"%s"}`, c.name)
-	room.broadcast([]byte(notification), c)
+	userJoinedMsg := fmt.Sprintf(`{"type":"user_joined","name":"%s"}`, c.name)
+	room.broadcast([]byte(userJoinedMsg), c)
 
-	welcomeMsg := fmt.Sprintf(`{"type": "welcome", "message": "welcome, %s, you just joined %s room"}`, c.name, room.name)
-	c.send <- []byte(welcomeMsg)
+	joinedMsg := fmt.Sprintf(`{"type":"joined","room": "%s"}`, room.name)
+	c.send <- []byte(joinedMsg)
 
 	return nil
 }
@@ -160,11 +160,11 @@ func (c *Client) handleLeave(content []byte) error {
 		hub.mutex.RUnlock()
 		if exists {
 			room.removeClient(c)
-			leaveMsg := fmt.Sprintf(`{"type":"user_left","name":"%s"}`, c.name)
-			room.broadcast([]byte(leaveMsg), nil)
+			userLeftMsg := fmt.Sprintf(`{"type":"user_left","name":"%s"}`, c.name)
+			room.broadcast([]byte(userLeftMsg), nil)
 
-			byeMsg := fmt.Sprintf(`{"type": "bye","message":"you left the %s room"}`, room.name)
-			c.send <- []byte(byeMsg)
+			leftMsg := fmt.Sprintf(`{"type":"left","room":"%s"}`, room.name)
+			c.send <- []byte(leftMsg)
 		}
 	}
 
