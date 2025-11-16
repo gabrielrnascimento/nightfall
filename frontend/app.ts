@@ -46,11 +46,11 @@ function connect() {
   socket.addEventListener("message", (event) => {
     log("[received] " + event.data);
     const message = JSON.parse(event.data);
-    if (message.type === "welcome") {
+    if (message.type === "joined") {
       joinBtn.disabled = true;
       leaveBtn.disabled = false;
     }
-    if (message.type === "bye") {
+    if (message.type === "left") {
       joinBtn.disabled = false;
       leaveBtn.disabled = true;
     }
