@@ -84,6 +84,36 @@ Leave the current room.
 
 ---
 
+### `start`
+
+Start a game in the current room. The client must be in a room to send this message.
+
+**Request:**
+
+```json
+{
+  "type": "start"
+}
+```
+
+**Fields:**
+
+- `type` (string, required): Must be `"start"`
+
+**Response:**
+
+- Server broadcasts `game_started` message to all clients in the room (including the sender)
+
+**Example:**
+
+```json
+{
+  "type": "start"
+}
+```
+
+---
+
 ## Server → Client Messages
 
 Messages sent from the server to the client.
@@ -204,6 +234,32 @@ Broadcast to all clients in a room when a user leaves. Not sent to the user who 
 
 ---
 
+### `game_started`
+
+Broadcast to all clients in a room when a game is started.
+
+**Message:**
+
+```json
+{
+  "type": "game_started"
+}
+```
+
+**Fields:**
+
+- `type` (string): Always `"game_started"`
+
+**Example:**
+
+```json
+{
+  "type": "game_started"
+}
+```
+
+---
+
 ## Message Flow Examples
 
 ### Joining a Room
@@ -246,6 +302,20 @@ Broadcast to all clients in a room when a user leaves. Not sent to the user who 
    {"type": "user_left", "name": "Alice"}
    ```
 
+### Starting a Game
+
+1. Client sends `start` message:
+
+   ```json
+   {"type": "start"}
+   ```
+
+2. Server broadcasts `game_started` to all clients in room:
+
+   ```json
+   {"type": "game_started"}
+   ```
+
 ---
 
 ## Error Handling
@@ -253,4 +323,5 @@ Broadcast to all clients in a room when a user leaves. Not sent to the user who 
 - Invalid JSON messages will result in connection errors
 - Messages with unknown `type` will result in an error response
 - Missing required fields in `join` messages will result in an error
+- If a client sends a `start` message while not in a room, the server will return an error
 - If a client disconnects unexpectedly, the server will automatically broadcast `user_left` to other clients in the room
