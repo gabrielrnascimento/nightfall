@@ -15,6 +15,7 @@ const messageInput = document.getElementById(
   "messageInput"
 ) as HTMLInputElement;
 const sendBtn = document.getElementById("sendBtn") as HTMLButtonElement;
+const startBtn = document.getElementById("startBtn") as HTMLButtonElement;
 
 function log(message: string) {
   const div = document.createElement("div");
@@ -51,12 +52,14 @@ function connect() {
       leaveBtn.disabled = false;
       nameInput.disabled = true;
       roomInput.disabled = true;
+      startBtn.disabled = false;
     }
     if (message.type === "left") {
       joinBtn.disabled = false;
       leaveBtn.disabled = true;
       nameInput.disabled = false;
       roomInput.disabled = false;
+      startBtn.disabled = true;
     }
   });
 
@@ -117,6 +120,15 @@ sendBtn.onclick = function () {
   sendMessage();
 };
 
+startBtn.onclick = function () {
+  const startMessage: StartMessage = {
+    type: "start",
+  };
+  if (!socket || socket.readyState !== WebSocket.OPEN) return;
+  socket.send(JSON.stringify(startMessage));
+  log("[sent] " + JSON.stringify(startMessage));
+};
+
 messageInput.addEventListener("keydown", function (e) {
   if (e.key === "Enter") sendMessage();
 });
@@ -132,6 +144,10 @@ type JoinMessage = {
 };
 
 type LeaveMessage = {
+  type: string;
+};
+
+type StartMessage = {
   type: string;
 };
 
