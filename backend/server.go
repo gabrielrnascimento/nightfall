@@ -89,6 +89,8 @@ func (c *Client) handleMessage(content []byte) error {
 		return c.handleJoin(content)
 	case "leave":
 		return c.handleLeave(content)
+	case "start":
+		return c.handleStart(content)
 	default:
 		return fmt.Errorf("unknown message type: %s", env.Type)
 	}
@@ -169,6 +171,28 @@ func (c *Client) handleLeave(content []byte) error {
 	}
 
 	c.room = ""
+	return nil
+}
+
+type StartMessage struct {
+	Type string `json:"type"`
+}
+
+func (c *Client) handleStart(content []byte) error {
+	var msg StartMessage
+	if err := json.Unmarshal(content, &msg); err != nil {
+		return err
+	}
+
+	hub.mutex.RLock()
+	room, exists := hub.rooms[c.room]
+	if !exists {
+		return fmt.Errorf("client is not in a room")
+	}
+	hub.mutex.RUnlock()
+
+	room.broadcast([]byte(`{"type":"game_started"}`), nil)
+
 	return nil
 }
 
