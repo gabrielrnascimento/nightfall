@@ -5,13 +5,16 @@
   "main": "index.js",
   "scripts": {
     "build": "tsc --noEmitOnError app.ts --outDir dist",
-    "build:watch": "pnpm run build --watch"
+    "build:watch": "pnpm run build --watch",
+    "dev": "concurrently \"pnpm run build:watch\" \"live-server --port=3000\""
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "packageManager": "pnpm@10.8.0",
   "devDependencies": {
+    "concurrently": "^9.2.1",
+    "live-server": "^1.2.2",
     "typescript": "^5.9.3"
   }
 }
