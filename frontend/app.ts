@@ -49,10 +49,14 @@ function connect() {
     if (message.type === "joined") {
       joinBtn.disabled = true;
       leaveBtn.disabled = false;
+      nameInput.disabled = true;
+      roomInput.disabled = true;
     }
     if (message.type === "left") {
       joinBtn.disabled = false;
       leaveBtn.disabled = true;
+      nameInput.disabled = false;
+      roomInput.disabled = false;
     }
   });
 
@@ -64,6 +68,8 @@ function connect() {
     joinBtn.disabled = true;
     leaveBtn.disabled = true;
     sendBtn.disabled = true;
+    nameInput.disabled = false;
+    roomInput.disabled = false;
   });
 
   socket.addEventListener("error", (event) => {
