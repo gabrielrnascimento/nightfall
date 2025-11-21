@@ -20,7 +20,7 @@ func main() {
 }
 
 func run() error {
-	l, err := net.Listen("tcp", "127.0.0.1:8080")
+	l, err := net.Listen("tcp", "127.0.0.1:3001")
 	if err != nil {
 		return err
 	}
