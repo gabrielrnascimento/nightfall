@@ -2,7 +2,6 @@ package main
 
 import "math/rand/v2"
 
-// MARK: GameRole
 type GameRole int
 
 const (
@@ -19,7 +18,7 @@ var gameRoles = map[GameRole]string{
 	Assassin:  "assassin",
 	Angel:     "angel",
 	Escort:    "escort",
-	Sadboy:    "sadboy",
+	Sadboy:    "sad boy",
 	Citizen:   "citizen",
 }
 
@@ -36,7 +35,6 @@ func (gr GameRole) String() string {
 	return gameRoles[gr]
 }
 
-// MARK: Game
 type Game struct {
 	rng *rand.Rand
 }

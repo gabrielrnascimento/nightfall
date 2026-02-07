@@ -10,12 +10,10 @@ import (
 	"github.com/coder/websocket"
 )
 
-// MARK: Envelope
 type Envelope struct {
 	Type string `json:"type"`
 }
 
-// MARK: Client
 type Client struct {
 	conn *websocket.Conn
 	send chan []byte
@@ -198,7 +196,6 @@ func (c *Client) handleStart(content []byte) error {
 	return nil
 }
 
-// MARK: Room
 type Room struct {
 	name    string
 	clients map[*Client]bool
@@ -240,7 +237,6 @@ var hub = &Hub{
 	rooms: make(map[string]*Room),
 }
 
-// MARK: simpleServer
 type simpleServer struct {
 	logf func(f string, v ...any)
 }
