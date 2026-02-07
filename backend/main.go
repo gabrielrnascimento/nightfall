@@ -31,15 +31,15 @@ func run() error {
 			logf: log.Printf,
 		},
 	}
-	errc := make(chan error, 1)
+	errC := make(chan error, 1)
 	go func() {
-		errc <- s.Serve(l)
+		errC <- s.Serve(l)
 	}()
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, os.Interrupt)
 	select {
-	case err := <-errc:
+	case err := <-errC:
 		log.Printf("failed to serve: %v", err)
 	case sig := <-sigs:
 		log.Printf("terminating: %v", sig)
