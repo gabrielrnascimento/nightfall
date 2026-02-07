@@ -227,7 +227,6 @@ func (r *Room) broadcast(message []byte, exclude *Client) {
 	}
 }
 
-// MARK: Hub
 type Hub struct {
 	rooms map[string]*Room
 	mutex sync.RWMutex
