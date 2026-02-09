@@ -142,7 +142,7 @@ func (c *Client) handleJoin(content []byte) error {
 	userJoinedMsg := fmt.Sprintf(`{"type":"user_joined","name":"%s"}`, c.name)
 	room.broadcast([]byte(userJoinedMsg), c)
 
-	joinedMsg := fmt.Sprintf(`{"type":"joined","room": "%s"}`, room.name)
+	joinedMsg := fmt.Sprintf(`{"type":"joined","room":"%s"}`, room.name)
 	c.send <- []byte(joinedMsg)
 
 	return nil
@@ -215,7 +215,7 @@ func (c *Client) handleReady(content []byte) error {
 	}
 	hub.mutex.RUnlock()
 
-	readyMsg := fmt.Sprintf(`{"type": "%s is ready"}`, c.name)
+	readyMsg := fmt.Sprintf(`{"type":"user_ready","name":"%s"}`, c.name)
 	room.broadcast([]byte(readyMsg), nil)
 
 	return nil
