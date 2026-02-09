@@ -91,6 +91,8 @@ func (c *Client) handleMessage(content []byte) error {
 		return c.handleLeave(content)
 	case "start":
 		return c.handleStart(content)
+	case "ready":
+		return c.handleReady(content)
 	default:
 		return fmt.Errorf("unknown message type: %s", env.Type)
 	}
@@ -192,6 +194,29 @@ func (c *Client) handleStart(content []byte) error {
 	hub.mutex.RUnlock()
 
 	room.broadcast([]byte(`{"type":"game_started"}`), nil)
+
+	return nil
+}
+
+type ReadyMessage struct {
+	Type string `json:"type"`
+}
+
+func (c *Client) handleReady(content []byte) error {
+	var msg ReadyMessage
+	if err := json.Unmarshal(content, &msg); err != nil {
+		return err
+	}
+
+	hub.mutex.RLock()
+	room, exists := hub.rooms[c.room]
+	if !exists {
+		return fmt.Errorf("client is not in a room")
+	}
+	hub.mutex.RUnlock()
+
+	readyMsg := fmt.Sprintf(`{"type": "%s is ready"}`, c.name)
+	room.broadcast([]byte(readyMsg), nil)
 
 	return nil
 }

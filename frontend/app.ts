@@ -11,10 +11,7 @@ const nameInput = document.getElementById("nameInput") as HTMLInputElement;
 const roomInput = document.getElementById("roomInput") as HTMLInputElement;
 const joinBtn = document.getElementById("joinBtn") as HTMLButtonElement;
 const leaveBtn = document.getElementById("leaveBtn") as HTMLButtonElement;
-const messageInput = document.getElementById(
-  "messageInput"
-) as HTMLInputElement;
-const sendBtn = document.getElementById("sendBtn") as HTMLButtonElement;
+const readyBtn = document.getElementById("readyBtn") as HTMLButtonElement;
 const startBtn = document.getElementById("startBtn") as HTMLButtonElement;
 
 function log(message: string) {
@@ -41,7 +38,6 @@ function connect() {
     disconnectBtn.disabled = false;
     joinBtn.disabled = false;
     leaveBtn.disabled = true;
-    sendBtn.disabled = false;
   });
 
   socket.addEventListener("message", (event) => {
@@ -52,6 +48,7 @@ function connect() {
       leaveBtn.disabled = false;
       nameInput.disabled = true;
       roomInput.disabled = true;
+      readyBtn.disabled = false;
       startBtn.disabled = false;
     }
     if (message.type === "left") {
@@ -60,6 +57,7 @@ function connect() {
       nameInput.disabled = false;
       roomInput.disabled = false;
       startBtn.disabled = true;
+      readyBtn.disabled = true;
     }
   });
 
@@ -70,7 +68,7 @@ function connect() {
     disconnectBtn.disabled = true;
     joinBtn.disabled = true;
     leaveBtn.disabled = true;
-    sendBtn.disabled = true;
+    readyBtn.disabled = true;
     nameInput.disabled = false;
     roomInput.disabled = false;
   });
@@ -116,8 +114,13 @@ leaveBtn.onclick = function () {
   log("[sent] " + JSON.stringify(leaveMessage));
 };
 
-sendBtn.onclick = function () {
-  sendMessage();
+readyBtn.onclick = function () {
+  const readyMessage: ReadyMessage = {
+    type: "ready",
+  };
+  if (!socket || socket.readyState !== WebSocket.OPEN) return;
+  socket.send(JSON.stringify(readyMessage));
+  log("[sent] " + JSON.stringify(readyMessage));
 };
 
 startBtn.onclick = function () {
@@ -128,10 +131,6 @@ startBtn.onclick = function () {
   socket.send(JSON.stringify(startMessage));
   log("[sent] " + JSON.stringify(startMessage));
 };
-
-messageInput.addEventListener("keydown", function (e) {
-  if (e.key === "Enter") sendMessage();
-});
 
 window.addEventListener("load", function () {
   connect();
@@ -151,10 +150,6 @@ type StartMessage = {
   type: string;
 };
 
-function sendMessage() {
-  const msg = messageInput.value;
-  if (!msg || !socket || socket.readyState !== WebSocket.OPEN) return;
-  socket.send(msg);
-  log("[sent] " + msg);
-  messageInput.value = "";
-}
+type ReadyMessage = {
+  type: string;
+};
