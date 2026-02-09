@@ -114,6 +114,36 @@ Start a game in the current room. The client must be in a room to send this mess
 
 ---
 
+### `ready`
+
+Signal that the client is ready to start the game.
+
+**Request:**
+
+```json
+{
+  "type": "ready"
+}
+```
+
+**Fields:**
+
+- `type` (string, required): Must be `"ready"`
+
+**Response:**
+
+- Server broadcasts `user_ready` to all clients in the room (including the sender)
+
+**Example:**
+
+```json
+{
+  "type": "ready"
+}
+```
+
+---
+
 ## Server → Client Messages
 
 Messages sent from the server to the client.
@@ -255,6 +285,35 @@ Broadcast to all clients in a room when a game is started.
 ```json
 {
   "type": "game_started"
+}
+```
+
+---
+
+### `user_ready`
+
+Broadcast to all clients in a room when a user signals they are ready.
+
+**Message:**
+
+```json
+{
+  "type": "user_ready",
+  "name": "string"
+}
+```
+
+**Fields:**
+
+- `type` (string): Always `"user_ready"`
+- `name` (string): Display name of the user who is ready
+
+**Example:**
+
+```json
+{
+  "type": "user_ready",
+  "name": "Alice"
 }
 ```
 
