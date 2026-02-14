@@ -5,16 +5,19 @@ import (
 	"testing"
 )
 
+var players = []string{"Alice", "Bob", "Charlie", "David"}
+var playerRoles = make(PlayerRoles)
+
 func newGame(seed uint64) *Game {
 	rng := rand.New(rand.NewPCG(seed, seed))
-	return &Game{rng}
+	return &Game{rng, players}
 }
 
 func Test_Game(t *testing.T) {
 	t.Run("should return a valid role", func(t *testing.T) {
 		game := newGame(42)
 
-		got := game.assignRole()
+		got := game.assignRole(playerRoles)
 
 		if _, ok := gameRoles[got]; !ok {
 			t.Errorf("got invalid role: %v", got)
@@ -27,26 +30,32 @@ func Test_Game(t *testing.T) {
 		game2 := newGame(seed)
 
 		for range 100 {
-			if game1.assignRole() != game2.assignRole() {
+			if game1.assignRole(playerRoles) != game2.assignRole(playerRoles) {
 				t.Error("game role assignment is not deterministic")
 			}
 		}
 	})
 
-	t.Run("should return all possible roles at least once", func(t *testing.T) {
+	t.Run("should ensure that there is always only one Assassin", func(t *testing.T) {
 		game := newGame(42)
-
-		results := make(map[GameRole]int)
-		for range 100 {
-			role := game.assignRole()
-			results[role]++
-		}
-
-		for role := range gameRoles {
-			if results[role] == 0 {
-				t.Errorf("%v role never assigned", role)
+		roles := game.assignRoles()
+		assassinCount := 0
+		for role := range roles {
+			if role == Assassin {
+				assassinCount++
 			}
 		}
-	})
 
+		if assassinCount == 1 {
+			return
+		}
+
+		if assassinCount > 1 {
+			t.Errorf("expected only one assassin")
+		}
+
+		if assassinCount == 0 {
+			t.Errorf("expected at least one assassin")
+		}
+	})
 }

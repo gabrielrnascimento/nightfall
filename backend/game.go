@@ -35,10 +35,27 @@ func (gr GameRole) String() string {
 	return gameRoles[gr]
 }
 
+type PlayerRoles map[GameRole]string
+
 type Game struct {
-	rng *rand.Rand
+	rng     *rand.Rand
+	players []string
 }
 
-func (g *Game) assignRole() GameRole {
-	return allGameRoles[g.rng.IntN(len(allGameRoles))]
+func (g *Game) assignRole(playerRoles PlayerRoles) GameRole {
+	assassinPlayer, _ := playerRoles[Assassin]
+	if assassinPlayer == "" {
+		return Assassin
+	}
+	selected := allGameRoles[g.rng.IntN(len(allGameRoles))]
+	return selected
+}
+
+func (g *Game) assignRoles() PlayerRoles {
+	playerRoles := make(PlayerRoles)
+	for _, player := range g.players {
+		role := g.assignRole(playerRoles)
+		playerRoles[role] = player
+	}
+	return playerRoles
 }
