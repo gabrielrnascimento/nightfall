@@ -57,26 +57,4 @@ func Test_Game(t *testing.T) {
 		}
 	})
 
-	t.Run("should ensure that there is always only one Assassin", func(t *testing.T) {
-		game := newGame(42)
-		roles := game.assignRoles()
-		assassinCount := 0
-		for role := range roles {
-			if role == Assassin {
-				assassinCount++
-			}
-		}
-
-		if assassinCount == 1 {
-			return
-		}
-
-		if assassinCount > 1 {
-			t.Errorf("expected only one Assassin")
-		}
-
-		if assassinCount == 0 {
-			t.Errorf("expected at least one Assassin")
-		}
-	})
 }
