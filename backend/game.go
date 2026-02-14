@@ -44,5 +44,10 @@ func (g *Game) assignRole(playerRoles PlayerRoles) GameRole {
 		return Detective
 	}
 
+	angelPlayer, _ := playerRoles[Angel]
+	if angelPlayer == "" {
+		return Angel
+	}
+
 	return Citizen
 }
