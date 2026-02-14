@@ -42,7 +42,7 @@ func Test_Game(t *testing.T) {
 		role := game.assignRole(playerRoles)
 
 		if role != Assassin {
-			t.Errorf("expected Assassion got %s", role)
+			t.Errorf("expected Assassin got %s", role)
 		}
 	})
 
@@ -61,11 +61,11 @@ func Test_Game(t *testing.T) {
 		}
 
 		if assassinCount > 1 {
-			t.Errorf("expected only one assassin")
+			t.Errorf("expected only one Assassin")
 		}
 
 		if assassinCount == 0 {
-			t.Errorf("expected at least one assassin")
+			t.Errorf("expected at least one Assassin")
 		}
 	})
 }

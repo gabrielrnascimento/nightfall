@@ -14,12 +14,12 @@ const (
 )
 
 var gameRoles = map[GameRole]string{
-	Detective: "detective",
-	Assassin:  "assassin",
-	Angel:     "angel",
-	Escort:    "escort",
-	Sadboy:    "sad boy",
-	Citizen:   "citizen",
+	Detective: "Detective",
+	Assassin:  "Assassin",
+	Angel:     "Angel",
+	Escort:    "Wscort",
+	Sadboy:    "Sad Boy",
+	Citizen:   "Citizen",
 }
 
 var allGameRoles = []GameRole{
