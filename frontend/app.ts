@@ -59,6 +59,9 @@ function connect() {
       startBtn.disabled = true;
       readyBtn.disabled = true;
     }
+    if (message.type === "user_ready" && message.name === nameInput.value) {
+      readyBtn.disabled = true
+    }
   });
 
   socket.addEventListener("close", (event) => {
