@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-var players = []string{"Alice", "Bob", "Charlie", "David"}
+var players = []string{"Alice", "Bob", "Charlie", "David", "Ellie"}
 var playerRoles = make(PlayerRoles)
 
 func newGame(seed uint64) *Game {
@@ -93,6 +93,21 @@ func Test_Game(t *testing.T) {
 
 		if role != Sadboy {
 			t.Errorf("expected Sad Boy got %s", role)
+		}
+	})
+
+	t.Run("should return Citizen if all other roles are filled", func(t *testing.T) {
+		game := newGame(42)
+		playerRoles[Assassin] = players[0]
+		playerRoles[Detective] = players[1]
+		playerRoles[Angel] = players[2]
+		playerRoles[Escort] = players[3]
+		playerRoles[Sadboy] = players[4]
+
+		role := game.assignRole(playerRoles)
+
+		if role != Citizen {
+			t.Errorf("expected Citizen got %s", role)
 		}
 	})
 }
