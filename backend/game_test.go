@@ -36,6 +36,16 @@ func Test_Game(t *testing.T) {
 		}
 	})
 
+	t.Run("should always return Assassin role first", func(t *testing.T) {
+		game := newGame(42)
+
+		role := game.assignRole(playerRoles)
+
+		if role != Assassin {
+			t.Errorf("expected Assassion got %s", role)
+		}
+	})
+
 	t.Run("should ensure that there is always only one Assassin", func(t *testing.T) {
 		game := newGame(42)
 		roles := game.assignRoles()
