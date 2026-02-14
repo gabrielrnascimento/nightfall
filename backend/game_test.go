@@ -68,4 +68,17 @@ func Test_Game(t *testing.T) {
 			t.Errorf("expected Angel got %s", role)
 		}
 	})
+
+	t.Run("should always return Escort if there is an Angel", func(t *testing.T) {
+		game := newGame(42)
+		playerRoles[Assassin] = players[0]
+		playerRoles[Detective] = players[1]
+		playerRoles[Angel] = players[2]
+
+		role := game.assignRole(playerRoles)
+
+		if role != Escort {
+			t.Errorf("expected Escort got %s", role)
+		}
+	})
 }

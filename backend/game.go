@@ -17,7 +17,7 @@ var gameRoles = map[GameRole]string{
 	Detective: "Detective",
 	Assassin:  "Assassin",
 	Angel:     "Angel",
-	Escort:    "Wscort",
+	Escort:    "Escort",
 	Sadboy:    "Sad Boy",
 	Citizen:   "Citizen",
 }
@@ -47,6 +47,11 @@ func (g *Game) assignRole(playerRoles PlayerRoles) GameRole {
 	angelPlayer, _ := playerRoles[Angel]
 	if angelPlayer == "" {
 		return Angel
+	}
+
+	escortPlayer, _ := playerRoles[Escort]
+	if escortPlayer == "" {
+		return Escort
 	}
 
 	return Citizen
