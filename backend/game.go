@@ -47,8 +47,13 @@ func (g *Game) assignRole(playerRoles PlayerRoles) GameRole {
 	if assassinPlayer == "" {
 		return Assassin
 	}
-	selected := allGameRoles[g.rng.IntN(len(allGameRoles))]
-	return selected
+
+	detectivePlayer, _ := playerRoles[Detective]
+	if detectivePlayer == "" {
+		return Detective
+	}
+
+	return Citizen
 }
 
 func (g *Game) assignRoles() PlayerRoles {
