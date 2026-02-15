@@ -2,10 +2,11 @@ package main
 
 import (
 	"math/rand/v2"
+	"reflect"
 	"testing"
 )
 
-var players = []string{"Alice", "Bob", "Charlie", "David", "Ellie"}
+var players = []string{"Alice", "Bob", "Charlie", "David", "Ellie", "Frank"}
 var playerRoles = make(PlayerRoles)
 
 func newGame(seed uint64) *Game {
@@ -13,7 +14,7 @@ func newGame(seed uint64) *Game {
 	return &Game{rng, players}
 }
 
-func Test_Game(t *testing.T) {
+func Test_Game_assignRole(t *testing.T) {
 	t.Run("should return a valid role", func(t *testing.T) {
 		game := newGame(42)
 
@@ -108,6 +109,27 @@ func Test_Game(t *testing.T) {
 
 		if role != Citizen {
 			t.Errorf("expected Citizen got %s", role)
+		}
+	})
+}
+
+func Test_Game_Start(t *testing.T) {
+	t.Run("should assign roles to all players", func(t *testing.T) {
+		game := newGame(42)
+
+		got := game.Start()
+
+		want := PlayerRoles{
+			Assassin:  "Alice",
+			Detective: "Bob",
+			Angel:     "Charlie",
+			Escort:    "David",
+			Sadboy:    "Ellie",
+			Citizen:   "Frank",
+		}
+
+		if !reflect.DeepEqual(got, want) {
+			t.Errorf("got %v, want %v", got, want)
 		}
 	})
 }

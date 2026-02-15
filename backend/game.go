@@ -61,3 +61,14 @@ func (g *Game) assignRole(playerRoles PlayerRoles) GameRole {
 
 	return Citizen
 }
+
+func (g *Game) Start() PlayerRoles {
+	playerRoles := make(PlayerRoles)
+
+	for _, player := range g.players {
+		role := g.assignRole(playerRoles)
+		playerRoles[role] = player
+	}
+
+	return playerRoles
+}
