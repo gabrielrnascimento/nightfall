@@ -2,7 +2,6 @@ package game
 
 import (
 	"encoding/json"
-	"math/rand/v2"
 	"reflect"
 	"testing"
 )
@@ -10,9 +9,8 @@ import (
 var players = []string{"Alice", "Bob", "Charlie", "David", "Ellie", "Frank"}
 var playerRoles = make(PlayerRoles)
 
-func newGame(seed uint64) *Game {
-	rng := rand.New(rand.NewPCG(seed, seed))
-	return &Game{RNG: rng, Players: players}
+func newGame() *Game {
+	return &Game{Players: players}
 }
 
 func Test_GameRole(t *testing.T) {
@@ -53,7 +51,7 @@ func Test_GameRole(t *testing.T) {
 
 func Test_Game_assignRole(t *testing.T) {
 	t.Run("should return a valid role", func(t *testing.T) {
-		game := newGame(42)
+		game := newGame()
 
 		got := game.assignRole(playerRoles)
 
@@ -63,9 +61,8 @@ func Test_Game_assignRole(t *testing.T) {
 	})
 
 	t.Run("should be deterministic", func(t *testing.T) {
-		seed := uint64(12345)
-		game1 := newGame(seed)
-		game2 := newGame(seed)
+		game1 := newGame()
+		game2 := newGame()
 
 		for range 100 {
 			if game1.assignRole(playerRoles) != game2.assignRole(playerRoles) {
@@ -75,7 +72,7 @@ func Test_Game_assignRole(t *testing.T) {
 	})
 
 	t.Run("should always return Assassin role first", func(t *testing.T) {
-		game := newGame(42)
+		game := newGame()
 
 		role := game.assignRole(playerRoles)
 
@@ -85,7 +82,7 @@ func Test_Game_assignRole(t *testing.T) {
 	})
 
 	t.Run("should always return Detective if there is an Assassin", func(t *testing.T) {
-		game := newGame(42)
+		game := newGame()
 		playerRoles[Assassin] = players[0]
 
 		role := game.assignRole(playerRoles)
@@ -96,7 +93,7 @@ func Test_Game_assignRole(t *testing.T) {
 	})
 
 	t.Run("should always return Angel if there is a Detective", func(t *testing.T) {
-		game := newGame(42)
+		game := newGame()
 		playerRoles[Assassin] = players[0]
 		playerRoles[Detective] = players[1]
 
@@ -108,7 +105,7 @@ func Test_Game_assignRole(t *testing.T) {
 	})
 
 	t.Run("should always return Escort if there is an Angel", func(t *testing.T) {
-		game := newGame(42)
+		game := newGame()
 		playerRoles[Assassin] = players[0]
 		playerRoles[Detective] = players[1]
 		playerRoles[Angel] = players[2]
@@ -121,7 +118,7 @@ func Test_Game_assignRole(t *testing.T) {
 	})
 
 	t.Run("should always return Sad Boy if there is an Escort", func(t *testing.T) {
-		game := newGame(42)
+		game := newGame()
 		playerRoles[Assassin] = players[0]
 		playerRoles[Detective] = players[1]
 		playerRoles[Angel] = players[2]
@@ -135,7 +132,7 @@ func Test_Game_assignRole(t *testing.T) {
 	})
 
 	t.Run("should return Citizen if all other roles are filled", func(t *testing.T) {
-		game := newGame(42)
+		game := newGame()
 		playerRoles[Assassin] = players[0]
 		playerRoles[Detective] = players[1]
 		playerRoles[Angel] = players[2]
@@ -152,21 +149,24 @@ func Test_Game_assignRole(t *testing.T) {
 
 func Test_Game_Start(t *testing.T) {
 	t.Run("should assign roles to all players", func(t *testing.T) {
-		game := newGame(42)
+		game := newGame()
 
 		got := game.Start()
 
-		want := PlayerRoles{
-			Assassin:  "Alice",
-			Detective: "Bob",
-			Angel:     "Charlie",
-			Escort:    "David",
-			Sadboy:    "Ellie",
-			Citizen:   "Frank",
+		if len(got) != len(players) {
+			t.Errorf("got %d roles assigned, want %d", len(got), len(players))
 		}
+	})
 
-		if !reflect.DeepEqual(got, want) {
-			t.Errorf("got %v, want %v", got, want)
+	t.Run("should assign random roles to players", func(t *testing.T) {
+		gameOne := newGame()
+		gameTwo := newGame()
+
+		gotOne := gameOne.Start()
+		gotTwo := gameTwo.Start()
+
+		if reflect.DeepEqual(gotOne, gotTwo) {
+			t.Errorf("got identical roles, want randomized")
 		}
 	})
 }

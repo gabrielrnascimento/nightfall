@@ -33,7 +33,6 @@ func (gr GameRole) MarshalText() ([]byte, error) {
 type PlayerRoles map[GameRole]string
 
 type Game struct {
-	RNG     *rand.Rand
 	Players []string
 }
 
@@ -72,6 +71,12 @@ func (g *Game) assignRole(playerRoles PlayerRoles) GameRole {
 
 func (g *Game) Start() PlayerRoles {
 	playerRoles := make(PlayerRoles)
+
+	slice := g.Players
+
+	rand.Shuffle(len(g.Players), func(i, j int) {
+		slice[i], slice[j] = slice[j], slice[i]
+	})
 
 	for _, player := range g.Players {
 		role := g.assignRole(playerRoles)
