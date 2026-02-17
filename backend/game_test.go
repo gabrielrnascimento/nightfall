@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"math/rand/v2"
 	"reflect"
 	"testing"
@@ -12,6 +13,42 @@ var playerRoles = make(PlayerRoles)
 func newGame(seed uint64) *Game {
 	rng := rand.New(rand.NewPCG(seed, seed))
 	return &Game{rng, players}
+}
+
+func Test_GameRole(t *testing.T) {
+	t.Run("String() should return correct name", func(t *testing.T) {
+		if Detective.String() != "Detective" {
+			t.Errorf("want Detective, got %s", Detective.String())
+		}
+		if Sadboy.String() != "Sad Boy" {
+			t.Errorf("want Sad Boy, got %s", Sadboy.String())
+		}
+	})
+
+	t.Run("MarshalText() should return correct bytes", func(t *testing.T) {
+		got, err := Assassin.MarshalText()
+		if err != nil {
+			t.Fatalf("MarshalText failed: %v", err)
+		}
+		if string(got) != "Assassin" {
+			t.Errorf("want Assassin, got %s", string(got))
+		}
+	})
+
+	t.Run("should marshal as JSON map key correctly", func(t *testing.T) {
+		roles := PlayerRoles{
+			Assassin: "Alice",
+		}
+		data, err := json.Marshal(roles)
+		if err != nil {
+			t.Fatalf("JSON marshal failed: %v", err)
+		}
+
+		want := `{"Assassin":"Alice"}`
+		if string(data) != want {
+			t.Errorf("want %s, got %s", want, string(data))
+		}
+	})
 }
 
 func Test_Game_assignRole(t *testing.T) {

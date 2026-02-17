@@ -26,6 +26,10 @@ func (gr GameRole) String() string {
 	return gameRoles[gr]
 }
 
+func (gr GameRole) MarshalText() ([]byte, error) {
+	return []byte(gr.String()), nil
+}
+
 type PlayerRoles map[GameRole]string
 
 type Game struct {
