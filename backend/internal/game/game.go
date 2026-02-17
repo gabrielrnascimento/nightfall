@@ -1,4 +1,4 @@
-package main
+package game
 
 import "math/rand/v2"
 
@@ -33,8 +33,12 @@ func (gr GameRole) MarshalText() ([]byte, error) {
 type PlayerRoles map[GameRole]string
 
 type Game struct {
-	rng     *rand.Rand
-	players []string
+	RNG     *rand.Rand
+	Players []string
+}
+
+func NewGame(players []string) Game {
+	return Game{Players: players}
 }
 
 func (g *Game) assignRole(playerRoles PlayerRoles) GameRole {
@@ -69,7 +73,7 @@ func (g *Game) assignRole(playerRoles PlayerRoles) GameRole {
 func (g *Game) Start() PlayerRoles {
 	playerRoles := make(PlayerRoles)
 
-	for _, player := range g.players {
+	for _, player := range g.Players {
 		role := g.assignRole(playerRoles)
 		playerRoles[role] = player
 	}

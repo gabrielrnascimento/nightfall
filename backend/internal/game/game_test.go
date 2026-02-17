@@ -1,4 +1,4 @@
-package main
+package game
 
 import (
 	"encoding/json"
@@ -12,7 +12,7 @@ var playerRoles = make(PlayerRoles)
 
 func newGame(seed uint64) *Game {
 	rng := rand.New(rand.NewPCG(seed, seed))
-	return &Game{rng, players}
+	return &Game{RNG: rng, Players: players}
 }
 
 func Test_GameRole(t *testing.T) {

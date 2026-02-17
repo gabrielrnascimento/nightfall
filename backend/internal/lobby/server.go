@@ -1,4 +1,4 @@
-package main
+package lobby
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/coder/websocket"
+	"github.com/gabrielrnascimento/nightfall/backend/internal/game"
 )
 
 type Envelope struct {
@@ -200,7 +201,7 @@ func (c *Client) handleStart(content []byte) error {
 	}
 	room.mutex.RUnlock()
 
-	game := Game{players: players}
+	game := game.NewGame(players)
 
 	pRoles := game.Start()
 
@@ -275,11 +276,11 @@ var hub = &Hub{
 	rooms: make(map[string]*Room),
 }
 
-type simpleServer struct {
-	logf func(f string, v ...any)
+type Server struct {
+	Logf func(f string, v ...any)
 }
 
-func (s simpleServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	c, err := websocket.Accept(w, r, &websocket.AcceptOptions{
 		OriginPatterns: []string{
 			"http://127.0.0.1:3000",
@@ -287,11 +288,11 @@ func (s simpleServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		},
 	})
 	if err != nil {
-		s.logf("%v", err)
+		s.Logf("%v", err)
 		return
 	}
 	defer c.CloseNow()
-	s.logf("client connected from %v", r.RemoteAddr)
+	s.Logf("client connected from %v", r.RemoteAddr)
 
 	client := &Client{
 		conn: c,
@@ -314,8 +315,8 @@ func (s simpleServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	err = <-errChan
 
 	if err == nil || websocket.CloseStatus(err) == websocket.StatusNormalClosure {
-		s.logf("client disconnected normally from %v", r.RemoteAddr)
+		s.Logf("client disconnected normally from %v", r.RemoteAddr)
 	} else {
-		s.logf("client disconnected with error from %v %v", r.RemoteAddr, err)
+		s.Logf("client disconnected with error from %v %v", r.RemoteAddr, err)
 	}
 }

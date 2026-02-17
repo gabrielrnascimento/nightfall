@@ -1,4 +1,4 @@
-package main
+package lobby
 
 import (
 	"context"
@@ -13,8 +13,8 @@ func Test_simpleServer(t *testing.T) {
 	t.Run("join and leave room", func(t *testing.T) {
 		t.Parallel()
 
-		s := httptest.NewServer(simpleServer{
-			logf: t.Logf,
+		s := httptest.NewServer(Server{
+			Logf: t.Logf,
 		})
 		defer s.Close()
 
@@ -67,8 +67,8 @@ func Test_simpleServer(t *testing.T) {
 	t.Run("start and ready messages", func(t *testing.T) {
 		t.Parallel()
 
-		s := httptest.NewServer(simpleServer{
-			logf: t.Logf,
+		s := httptest.NewServer(Server{
+			Logf: t.Logf,
 		})
 		defer s.Close()
 
@@ -111,8 +111,8 @@ func Test_simpleServer(t *testing.T) {
 	t.Run("multi-client interactions", func(t *testing.T) {
 		t.Parallel()
 
-		s := httptest.NewServer(simpleServer{
-			logf: t.Logf,
+		s := httptest.NewServer(Server{
+			Logf: t.Logf,
 		})
 		defer s.Close()
 
@@ -162,8 +162,8 @@ func Test_simpleServer(t *testing.T) {
 	t.Run("error scenarios", func(t *testing.T) {
 		t.Parallel()
 
-		s := httptest.NewServer(simpleServer{
-			logf: t.Logf,
+		s := httptest.NewServer(Server{
+			Logf: t.Logf,
 		})
 		defer s.Close()
 

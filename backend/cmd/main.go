@@ -8,6 +8,8 @@ import (
 	"os"
 	"os/signal"
 	"time"
+
+	"github.com/gabrielrnascimento/nightfall/backend/internal/lobby"
 )
 
 func main() {
@@ -27,8 +29,8 @@ func run() error {
 	log.Printf("listening on ws://%v", l.Addr())
 
 	s := &http.Server{
-		Handler: simpleServer{
-			logf: log.Printf,
+		Handler: lobby.Server{
+			Logf: log.Printf,
 		},
 	}
 	errC := make(chan error, 1)
