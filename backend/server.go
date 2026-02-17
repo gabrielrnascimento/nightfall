@@ -193,7 +193,21 @@ func (c *Client) handleStart(content []byte) error {
 	}
 	hub.mutex.RUnlock()
 
-	room.broadcast([]byte(`{"type":"game_started"}`), nil)
+	room.mutex.RLock()
+	var players []string
+	for client := range room.clients {
+		players = append(players, client.name)
+	}
+	room.mutex.RUnlock()
+
+	game := Game{players: players}
+
+	pRoles := game.Start()
+
+	rolesJson, _ := json.Marshal(pRoles)
+	startMessage := fmt.Sprintf(`{"type":"game_started","roles":%s}`, rolesJson)
+
+	room.broadcast([]byte(startMessage), nil)
 
 	return nil
 }

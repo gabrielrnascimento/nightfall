@@ -102,7 +102,7 @@ func Test_simpleServer(t *testing.T) {
 		}
 		_, bytes, _ = c.Read(ctx)
 		got = string(bytes)
-		want = `{"type":"game_started"}`
+		want = `{"type":"game_started","roles":{"Assassin":"Alice"}}`
 		if got != want {
 			t.Errorf("got %v want %v", got, want)
 		}
@@ -138,12 +138,13 @@ func Test_simpleServer(t *testing.T) {
 
 		_ = c1.Write(ctx, websocket.MessageText, []byte(`{"type": "start"}`))
 		_, bytes, _ = c1.Read(ctx)
-		if string(bytes) != `{"type":"game_started"}` {
+		wantStart := `{"type":"game_started","roles":{"Assassin":"Alice","Detective":"Bob"}}`
+		if string(bytes) != wantStart {
 			t.Errorf("Alice didn't get game_started, got %s", string(bytes))
 		}
 
 		_, bytes, _ = c2.Read(ctx)
-		if string(bytes) != `{"type":"game_started"}` {
+		if string(bytes) != wantStart {
 			t.Errorf("Bob didn't get game_started, got %s", string(bytes))
 		}
 
