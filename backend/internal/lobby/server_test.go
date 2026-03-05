@@ -2,7 +2,9 @@ package lobby
 
 import (
 	"context"
+	"log/slog"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 
@@ -14,7 +16,7 @@ func Test_simpleServer(t *testing.T) {
 		t.Parallel()
 
 		s := httptest.NewServer(Server{
-			Logf: t.Logf,
+			Logger: slog.New(slog.NewTextHandler(os.Stderr, nil)),
 		})
 		defer s.Close()
 
@@ -68,7 +70,7 @@ func Test_simpleServer(t *testing.T) {
 		t.Parallel()
 
 		s := httptest.NewServer(Server{
-			Logf: t.Logf,
+			Logger: slog.New(slog.NewTextHandler(os.Stderr, nil)),
 		})
 		defer s.Close()
 
@@ -112,7 +114,7 @@ func Test_simpleServer(t *testing.T) {
 		t.Parallel()
 
 		s := httptest.NewServer(Server{
-			Logf: t.Logf,
+			Logger: slog.New(slog.NewTextHandler(os.Stderr, nil)),
 		})
 		defer s.Close()
 
@@ -163,7 +165,7 @@ func Test_simpleServer(t *testing.T) {
 		t.Parallel()
 
 		s := httptest.NewServer(Server{
-			Logf: t.Logf,
+			Logger: slog.New(slog.NewTextHandler(os.Stderr, nil)),
 		})
 		defer s.Close()
 

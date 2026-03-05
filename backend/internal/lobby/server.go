@@ -2,6 +2,7 @@ package lobby
 
 import (
 	"context"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -14,7 +15,7 @@ import (
 var tracer = otel.Tracer("nightfall/lobby")
 
 type Server struct {
-	Logf func(f string, v ...any)
+	Logger *slog.Logger
 }
 
 func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -45,11 +46,11 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "websocket accept failed")
-		s.Logf("%v", err)
+		s.Logger.ErrorContext(ctx, "websocket accept failed", "error", err, "remote_addr", r.RemoteAddr)
 		return
 	}
 	defer c.CloseNow()
-	s.Logf("client connected from %v", r.RemoteAddr)
+	s.Logger.InfoContext(ctx, "client connected", "remote_addr", r.RemoteAddr)
 
 	client := &Client{
 		conn: c,
@@ -73,12 +74,12 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err == nil || websocket.CloseStatus(err) == websocket.StatusNormalClosure {
 		span.SetStatus(codes.Ok, "")
 		event.Outcome = "success"
-		s.Logf("client disconnected normally from %v", r.RemoteAddr)
+		s.Logger.InfoContext(ctx, "client disconnected", "remote_addr", r.RemoteAddr)
 	} else {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "abnormal disconnect")
 		event.Outcome = "error"
 		event.Error = err.Error()
-		s.Logf("client disconnected with error from %v %v", r.RemoteAddr, err)
+		s.Logger.ErrorContext(ctx, "client disconnected with error", "remote_addr", r.RemoteAddr, "error", err)
 	}
 }

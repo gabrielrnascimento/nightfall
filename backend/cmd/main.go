@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -14,11 +14,10 @@ import (
 )
 
 func main() {
-	log.SetFlags(0)
-
 	err := run()
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("fatal error", "error", err)
+		os.Exit(1)
 	}
 }
 
@@ -31,7 +30,7 @@ func run() error {
 	}
 	defer func() {
 		if err := shutdown(ctx); err != nil {
-			log.Printf("failed to shutdown telemetry: %v", err)
+			slog.Error("failed to shutdown telemetry", "error", err)
 		}
 	}()
 
@@ -39,11 +38,11 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	log.Printf("listening on ws://%v", l.Addr())
+	slog.Info("listening", "addr", "ws://"+l.Addr().String())
 
 	s := &http.Server{
 		Handler: lobby.Server{
-			Logf: log.Printf,
+			Logger: slog.Default(),
 		},
 	}
 	errC := make(chan error, 1)
@@ -55,9 +54,9 @@ func run() error {
 	signal.Notify(sigs, os.Interrupt)
 	select {
 	case err := <-errC:
-		log.Printf("failed to serve: %v", err)
+		slog.Error("failed to serve", "error", err)
 	case sig := <-sigs:
-		log.Printf("terminating: %v", sig)
+		slog.Info("terminating", "signal", sig)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
