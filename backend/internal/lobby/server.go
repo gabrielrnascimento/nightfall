@@ -3,6 +3,7 @@ package lobby
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/coder/websocket"
 	"go.opentelemetry.io/otel"
@@ -19,6 +20,19 @@ type Server struct {
 func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx, span := tracer.Start(r.Context(), "websocket.session")
 	defer span.End()
+
+	start := time.Now()
+
+	event := &SessionEvent{
+		Service:    "nightfall-backend",
+		Event:      "websocket.session",
+		RemoteAddr: r.RemoteAddr,
+	}
+
+	defer func() {
+		event.DurationMs = time.Since(start).Milliseconds()
+		event.Emit(ctx)
+	}()
 
 	span.SetAttributes(attribute.String("net.peer.addr", r.RemoteAddr))
 
@@ -41,7 +55,6 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		conn: c,
 		send: make(chan []byte, 256),
 	}
-
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -58,8 +71,14 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	err = <-errChan
 
 	if err == nil || websocket.CloseStatus(err) == websocket.StatusNormalClosure {
+		span.SetStatus(codes.Ok, "")
+		event.Outcome = "success"
 		s.Logf("client disconnected normally from %v", r.RemoteAddr)
 	} else {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "abnormal disconnect")
+		event.Outcome = "error"
+		event.Error = err.Error()
 		s.Logf("client disconnected with error from %v %v", r.RemoteAddr, err)
 	}
 }
