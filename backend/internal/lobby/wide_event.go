@@ -2,9 +2,7 @@ package lobby
 
 import (
 	"context"
-	"encoding/json"
 	"log/slog"
-	"time"
 
 	"go.opentelemetry.io/otel/trace"
 )
@@ -41,14 +39,24 @@ type SessionStats struct {
 	MessagesReceived int64 `json:"messages_received,omitempty"`
 }
 
-func (e *SessionEvent) Emit(ctx context.Context) {
+func (e *SessionEvent) Emit(ctx context.Context, message string) {
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		e.TraceID = span.SpanContext().TraceID().String()
 		e.SpanID = span.SpanContext().SpanID().String()
 	}
-	e.Timestamp = time.Now().Format(time.RFC3339Nano)
 
-	data, _ := json.Marshal(e)
-	slog.InfoContext(ctx, string(data))
+	args := []any{
+		"service", e.Service,
+		"event", e.Event,
+		"remote_addr", e.RemoteAddr,
+		"duration_ms", e.DurationMs,
+		"outcome", e.Outcome,
+	}
+
+	if e.Error != "" {
+		args = append(args, "error", e.Error)
+	}
+
+	slog.InfoContext(ctx, message, args...)
 }

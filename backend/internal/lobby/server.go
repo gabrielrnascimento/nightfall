@@ -32,7 +32,7 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	defer func() {
 		event.DurationMs = time.Since(start).Milliseconds()
-		event.Emit(ctx)
+		event.Emit(ctx, event.Event)
 	}()
 
 	span.SetAttributes(attribute.String("net.peer.addr", r.RemoteAddr))
