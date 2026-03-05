@@ -3,8 +3,11 @@ package telemetry
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"os"
 	"time"
 
+	"go.opentelemetry.io/contrib/bridges/otelslog"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
@@ -55,6 +58,12 @@ func Setup(ctx context.Context, serviceName, serviceVersion string) (shutdown fu
 		log.WithResource(res),
 	)
 	global.SetLoggerProvider(lp)
+	slog.SetDefault(slog.New(&multiHandler{
+		handlers: []slog.Handler{
+			otelslog.NewHandler("nightfall-backend"),
+			slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}),
+		},
+	}))
 
 	shutdown = func(ctx context.Context) error {
 		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
@@ -64,4 +73,37 @@ func Setup(ctx context.Context, serviceName, serviceVersion string) (shutdown fu
 		return conn.Close()
 	}
 	return shutdown, nil
+}
+
+type multiHandler struct{ handlers []slog.Handler }
+
+func (m *multiHandler) Enabled(ctx context.Context, l slog.Level) bool {
+	for _, h := range m.handlers {
+		if h.Enabled(ctx, l) {
+			return true
+		}
+	}
+	return false
+}
+func (m *multiHandler) Handle(ctx context.Context, r slog.Record) error {
+	for _, h := range m.handlers {
+		if h.Enabled(ctx, r.Level) {
+			_ = h.Handle(ctx, r.Clone())
+		}
+	}
+	return nil
+}
+func (m *multiHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	hs := make([]slog.Handler, len(m.handlers))
+	for i, h := range m.handlers {
+		hs[i] = h.WithAttrs(attrs)
+	}
+	return &multiHandler{hs}
+}
+func (m *multiHandler) WithGroup(name string) slog.Handler {
+	hs := make([]slog.Handler, len(m.handlers))
+	for i, h := range m.handlers {
+		hs[i] = h.WithGroup(name)
+	}
+	return &multiHandler{hs}
 }
