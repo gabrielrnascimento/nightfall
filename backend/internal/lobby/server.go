@@ -5,13 +5,23 @@ import (
 	"net/http"
 
 	"github.com/coder/websocket"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 )
+
+var tracer = otel.Tracer("nightfall/lobby")
 
 type Server struct {
 	Logf func(f string, v ...any)
 }
 
 func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	ctx, span := tracer.Start(r.Context(), "websocket.session")
+	defer span.End()
+
+	span.SetAttributes(attribute.String("net.peer.addr", r.RemoteAddr))
+
 	c, err := websocket.Accept(w, r, &websocket.AcceptOptions{
 		OriginPatterns: []string{
 			"http://127.0.0.1:3000",
@@ -19,6 +29,8 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		},
 	})
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "websocket accept failed")
 		s.Logf("%v", err)
 		return
 	}
@@ -30,7 +42,7 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		send: make(chan []byte, 256),
 	}
 
-	ctx, cancel := context.WithCancel(r.Context())
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	errChan := make(chan error, 1)

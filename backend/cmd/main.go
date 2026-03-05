@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gabrielrnascimento/nightfall/backend/internal/lobby"
+	"github.com/gabrielrnascimento/nightfall/backend/internal/telemetry"
 )
 
 func main() {
@@ -22,6 +23,18 @@ func main() {
 }
 
 func run() error {
+	ctx := context.Background()
+
+	shutdown, err := telemetry.Setup(ctx, "nightfall-backend", "0.1.0")
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := shutdown(ctx); err != nil {
+			log.Printf("failed to shutdown telemetry: %v", err)
+		}
+	}()
+
 	l, err := net.Listen("tcp", "127.0.0.1:3001")
 	if err != nil {
 		return err
