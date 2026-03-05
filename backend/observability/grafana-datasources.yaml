@@ -1,0 +1,15 @@
+apiVersion: 1
+datasources:
+  - name: Tempo
+    type: tempo
+    url: http://tempo:3200
+    isDefault: true
+    jsonData:
+      tracesToLogsV2:
+        datasourceUid: loki
+      serviceMap:
+        datasourceUid: prometheus
+  - name: Loki
+    type: loki
+    uid: loki
+    url: http://loki:3100
