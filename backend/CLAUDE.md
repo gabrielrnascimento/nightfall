@@ -43,6 +43,10 @@ cd observability && docker compose up -d
 
 **Tracing**: Each WebSocket session gets a span via `tracer.Start(r.Context(), ...)`. The tracer is package-level: `var tracer = otel.Tracer("nightfall/lobby")`.
 
-**Wide events**: At the end of each WebSocket session, a `SessionEvent` is emitted via `Emit(ctx, message)` — a single structured log capturing the full session lifecycle (duration, outcome, player/room context). Add fields to `SessionEvent` in `wide_event.go` rather than scattering individual logs.
+**Wide events**: At the end of each WebSocket session, a `SessionEvent` is emitted via `Emit(ctx, message)` — a single structured log capturing the full session lifecycle (duration, outcome, player/room context). Add fields to `SessionEvent` in `wide_event.go` rather than scattering individual logs. The struct has no json tags — `Emit()` builds a flat slog `args` slice manually; add new fields there, not as struct tags.
 
 **Hub concurrency**: `Hub` and `Room` use `sync.RWMutex`. The global `hub` singleton is in `hub.go`. Always acquire the lock before reading/writing room state.
+
+## Known Issues
+
+- `Test_simpleServer/multi-client_interactions` is a pre-existing failing test — not caused by observability or other recent changes.

@@ -71,6 +71,27 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	err = <-errChan
 
+	if client.name != "" {
+		event.Player = &PlayerContext{ID: client.name}
+	}
+	if client.room != "" {
+		hub.mutex.RLock()
+		room := hub.rooms[client.room]
+		hub.mutex.RUnlock()
+		if room != nil {
+			room.mutex.RLock()
+			event.Room = &RoomContext{
+				ID:          room.name,
+				PlayerCount: len(room.clients),
+			}
+			room.mutex.RUnlock()
+		}
+	}
+	event.Stats = &SessionStats{
+		MessagesReceived: client.messagesReceived,
+		MessagesSent:     client.messagesSent,
+	}
+
 	if err == nil || websocket.CloseStatus(err) == websocket.StatusNormalClosure {
 		span.SetStatus(codes.Ok, "")
 		event.Outcome = "success"

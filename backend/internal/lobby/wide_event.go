@@ -8,35 +8,34 @@ import (
 )
 
 type SessionEvent struct {
-	Timestamp  string `json:"timestamp"`
-	TraceID    string `json:"trace_id"`
-	SpanID     string `json:"span_id"`
-	Service    string `json:"service"`
-	Event      string `json:"event"`
-	RemoteAddr string `json:"remote_addr"`
-	DurationMs int64  `json:"duration_ms"`
-	Outcome    string `json:"outcome"`
-	Error      string `json:"error,omitempty"`
+	TraceID    string
+	SpanID     string
+	Service    string
+	Event      string
+	RemoteAddr string
+	DurationMs int64
+	Outcome    string
+	Error      string
 
-	Player *PlayerContext `json:"player,omitempty"`
-	Room   *RoomContext   `json:"room,omitempty"`
-	Stats  *SessionStats  `json:"stats,omitempty"`
+	Player *PlayerContext
+	Room   *RoomContext
+	Stats  *SessionStats
 }
 
 type PlayerContext struct {
-	ID   string `json:"id,omitempty"`
-	Role string `json:"role,omitempty"`
+	ID   string
+	Role string
 }
 
 type RoomContext struct {
-	ID          string `json:"id,omitempty"`
-	PlayerCount int    `json:"player_count,omitempty"`
-	GameStarted bool   `json:"game_started,omitempty"`
+	ID          string
+	PlayerCount int
+	GameStarted bool
 }
 
 type SessionStats struct {
-	MessagesSent     int64 `json:"messages_sent,omitempty"`
-	MessagesReceived int64 `json:"messages_received,omitempty"`
+	MessagesSent     int64
+	MessagesReceived int64
 }
 
 func (e *SessionEvent) Emit(ctx context.Context, message string) {
@@ -52,10 +51,24 @@ func (e *SessionEvent) Emit(ctx context.Context, message string) {
 		"remote_addr", e.RemoteAddr,
 		"duration_ms", e.DurationMs,
 		"outcome", e.Outcome,
+		"trace_id", e.TraceID,
+		"span_id", e.SpanID,
 	}
 
 	if e.Error != "" {
 		args = append(args, "error", e.Error)
+	}
+
+	if e.Player != nil {
+		args = append(args, "player.id", e.Player.ID)
+	}
+
+	if e.Room != nil {
+		args = append(args, "room.id", e.Room.ID, "room.player_count", e.Room.PlayerCount)
+	}
+
+	if e.Stats != nil {
+		args = append(args, "messages_received", e.Stats.MessagesReceived, "messages_sent", e.Stats.MessagesSent)
 	}
 
 	slog.InfoContext(ctx, message, args...)
