@@ -9,7 +9,7 @@ run:
 	go run ./cmd/main.go
 
 test:
-	go test -v ./...
+	go test -race -v ./...
 
 clean:
 	go clean
