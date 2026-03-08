@@ -38,7 +38,7 @@ type SessionStats struct {
 	MessagesReceived int64
 }
 
-func (e *SessionEvent) Emit(ctx context.Context, message string) {
+func (e *SessionEvent) buildArgs(ctx context.Context) []any {
 	span := trace.SpanFromContext(ctx)
 	if span.SpanContext().IsValid() {
 		e.TraceID = span.SpanContext().TraceID().String()
@@ -71,5 +71,9 @@ func (e *SessionEvent) Emit(ctx context.Context, message string) {
 		args = append(args, "messages_received", e.Stats.MessagesReceived, "messages_sent", e.Stats.MessagesSent)
 	}
 
-	slog.InfoContext(ctx, message, args...)
+	return args
+}
+
+func (e *SessionEvent) Emit(ctx context.Context, message string) {
+	slog.InfoContext(ctx, message, e.buildArgs(ctx)...)
 }
