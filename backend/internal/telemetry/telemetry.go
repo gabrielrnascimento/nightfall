@@ -2,6 +2,7 @@ package telemetry
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -72,9 +73,7 @@ func Setup(ctx context.Context, serviceName, serviceVersion string) (shutdown fu
 	shutdown = func(ctx context.Context) error {
 		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 		defer cancel()
-		_ = tp.Shutdown(ctx)
-		_ = lp.Shutdown(ctx)
-		return conn.Close()
+		return errors.Join(tp.Shutdown(ctx), lp.Shutdown(ctx), conn.Close())
 	}
 	return shutdown, nil
 }
