@@ -21,4 +21,6 @@ Single-file TypeScript app (`app.ts`) compiled to `dist/`. No framework, no bund
 
 Connects to the backend WebSocket at `ws://127.0.0.1:3001` (default). The backend only accepts connections from `http://127.0.0.1:3000` or `http://localhost:3000`, so the live-server must run on port 3000.
 
+**The backend must be running** for the frontend to function. Open `http://127.0.0.1:3000` in a browser after `pnpm dev` starts.
+
 See `docs/WEBSOCKET_PROTOCOL.md` (in repo root) for the full message spec.
