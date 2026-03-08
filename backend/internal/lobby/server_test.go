@@ -2,6 +2,7 @@ package lobby
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"net/http/httptest"
 	"testing"
@@ -145,15 +146,34 @@ func Test_simpleServer(t *testing.T) {
 		}
 
 		_ = c1.Write(ctx, websocket.MessageText, []byte(`{"type": "start"}`))
-		_, bytes, _ = c1.Read(ctx)
-		wantStart := `{"type":"game_started","roles":{"Assassin":"Alice","Detective":"Bob"}}`
-		if string(bytes) != wantStart {
-			t.Errorf("Alice didn't get game_started, got %s", string(bytes))
+		_, aliceBytes, _ := c1.Read(ctx)
+		_, bobBytes, _ := c2.Read(ctx)
+
+		// Both clients must receive the same broadcast.
+		if string(aliceBytes) != string(bobBytes) {
+			t.Errorf("clients received different game_started messages: Alice=%s Bob=%s", aliceBytes, bobBytes)
 		}
 
-		_, bytes, _ = c2.Read(ctx)
-		if string(bytes) != wantStart {
-			t.Errorf("Bob didn't get game_started, got %s", string(bytes))
+		// Roles are assigned randomly; assert invariants rather than a specific mapping.
+		var startMsg struct {
+			Type  string            `json:"type"`
+			Roles map[string]string `json:"roles"`
+		}
+		if err := json.Unmarshal(aliceBytes, &startMsg); err != nil {
+			t.Fatalf("failed to parse game_started message: %v", err)
+		}
+		if startMsg.Type != "game_started" {
+			t.Errorf("type: want game_started, got %s", startMsg.Type)
+		}
+		players := map[string]bool{"Alice": true, "Bob": true}
+		for role, player := range startMsg.Roles {
+			if !players[player] {
+				t.Errorf("role %s assigned to unknown player %q", role, player)
+			}
+			delete(players, player)
+		}
+		if len(players) != 0 {
+			t.Errorf("players not assigned a role: %v", players)
 		}
 
 		_ = c2.Write(ctx, websocket.MessageText, []byte(`{"type": "leave"}`))
