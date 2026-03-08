@@ -56,6 +56,3 @@ cd observability && docker compose up -d
 
 **Partial staging**: `printf 'y\nn\n' | git add -p <file>` works for hunk-level staging — useful when a file has independent concerns to split into separate commits.
 
-## Known Issues
-
-- `Test_simpleServer/multi-client_interactions` is a pre-existing failing test — not caused by observability or other recent changes.
