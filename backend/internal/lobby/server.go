@@ -88,8 +88,8 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	event.Stats = &SessionStats{
-		MessagesReceived: client.messagesReceived,
-		MessagesSent:     client.messagesSent,
+		MessagesReceived: client.messagesReceived.Load(),
+		MessagesSent:     client.messagesSent.Load(),
 	}
 
 	if err == nil || websocket.CloseStatus(err) == websocket.StatusNormalClosure {

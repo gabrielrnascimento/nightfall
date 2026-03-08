@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"sync/atomic"
 
 	"github.com/coder/websocket"
 	"github.com/gabrielrnascimento/nightfall/backend/internal/game"
@@ -16,8 +17,8 @@ type Client struct {
 	send             chan []byte
 	name             string
 	room             string
-	messagesReceived int64
-	messagesSent     int64
+	messagesReceived atomic.Int64
+	messagesSent     atomic.Int64
 }
 
 func (c *Client) writePump(ctx context.Context) {
@@ -32,7 +33,7 @@ func (c *Client) writePump(ctx context.Context) {
 			if err := c.conn.Write(ctx, websocket.MessageText, message); err != nil {
 				return
 			}
-			c.messagesSent++
+			c.messagesSent.Add(1)
 
 		case <-ctx.Done():
 			return
@@ -63,7 +64,7 @@ func (c *Client) readPump(ctx context.Context) error {
 			}
 			return err
 		}
-		c.messagesReceived++
+		c.messagesReceived.Add(1)
 
 		if err := c.handleMessage(ctx, content); err != nil {
 			return err
