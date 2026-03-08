@@ -4,19 +4,25 @@ import (
 	"context"
 	"log/slog"
 	"net/http/httptest"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/coder/websocket"
 )
 
+type testWriter struct{ t *testing.T }
+
+func (tw *testWriter) Write(p []byte) (int, error) {
+	tw.t.Log(string(p))
+	return len(p), nil
+}
+
 func Test_simpleServer(t *testing.T) {
 	t.Run("join and leave room", func(t *testing.T) {
 		t.Parallel()
 
 		s := httptest.NewServer(Server{
-			Logger: slog.New(slog.NewTextHandler(os.Stderr, nil)),
+			Logger: slog.New(slog.NewTextHandler(&testWriter{t}, nil)),
 		})
 		defer s.Close()
 
@@ -70,7 +76,7 @@ func Test_simpleServer(t *testing.T) {
 		t.Parallel()
 
 		s := httptest.NewServer(Server{
-			Logger: slog.New(slog.NewTextHandler(os.Stderr, nil)),
+			Logger: slog.New(slog.NewTextHandler(&testWriter{t}, nil)),
 		})
 		defer s.Close()
 
@@ -114,7 +120,7 @@ func Test_simpleServer(t *testing.T) {
 		t.Parallel()
 
 		s := httptest.NewServer(Server{
-			Logger: slog.New(slog.NewTextHandler(os.Stderr, nil)),
+			Logger: slog.New(slog.NewTextHandler(&testWriter{t}, nil)),
 		})
 		defer s.Close()
 
@@ -165,7 +171,7 @@ func Test_simpleServer(t *testing.T) {
 		t.Parallel()
 
 		s := httptest.NewServer(Server{
-			Logger: slog.New(slog.NewTextHandler(os.Stderr, nil)),
+			Logger: slog.New(slog.NewTextHandler(&testWriter{t}, nil)),
 		})
 		defer s.Close()
 
