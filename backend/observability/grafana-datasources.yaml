@@ -7,8 +7,6 @@ datasources:
     jsonData:
       tracesToLogsV2:
         datasourceUid: loki
-      serviceMap:
-        datasourceUid: prometheus
   - name: Loki
     type: loki
     uid: loki
