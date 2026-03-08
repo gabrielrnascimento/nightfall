@@ -22,6 +22,25 @@ import (
 )
 
 func Setup(ctx context.Context, serviceName, serviceVersion string) (shutdown func(context.Context) error, err error) {
+	var cleanups []func(context.Context) error
+
+	shutdown = func(ctx context.Context) error {
+		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		var errs []error
+		for _, fn := range cleanups {
+			errs = append(errs, fn(ctx))
+		}
+		cleanups = nil
+		return errors.Join(errs...)
+	}
+
+	defer func() {
+		if err != nil {
+			err = errors.Join(err, shutdown(ctx))
+		}
+	}()
+
 	endpoint := os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
 	if endpoint == "" {
 		endpoint = "localhost:4317"
@@ -33,6 +52,7 @@ func Setup(ctx context.Context, serviceName, serviceVersion string) (shutdown fu
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to collector: %w", err)
 	}
+	cleanups = append(cleanups, func(_ context.Context) error { return conn.Close() })
 
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
@@ -53,7 +73,9 @@ func Setup(ctx context.Context, serviceName, serviceVersion string) (shutdown fu
 		sdktrace.WithResource(res),
 		sdktrace.WithSampler(sdktrace.AlwaysSample()),
 	)
+	cleanups = append(cleanups, tp.Shutdown)
 	otel.SetTracerProvider(tp)
+
 	logExporter, err := otlploggrpc.New(ctx, otlploggrpc.WithGRPCConn(conn))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create log exporter: %w", err)
@@ -62,7 +84,9 @@ func Setup(ctx context.Context, serviceName, serviceVersion string) (shutdown fu
 		log.WithProcessor(log.NewBatchProcessor(logExporter)),
 		log.WithResource(res),
 	)
+	cleanups = append(cleanups, lp.Shutdown)
 	global.SetLoggerProvider(lp)
+
 	slog.SetDefault(slog.New(&multiHandler{
 		handlers: []slog.Handler{
 			otelslog.NewHandler("nightfall-backend"),
@@ -70,11 +94,6 @@ func Setup(ctx context.Context, serviceName, serviceVersion string) (shutdown fu
 		},
 	}))
 
-	shutdown = func(ctx context.Context) error {
-		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-		defer cancel()
-		return errors.Join(tp.Shutdown(ctx), lp.Shutdown(ctx), conn.Close())
-	}
 	return shutdown, nil
 }
 
