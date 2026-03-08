@@ -47,6 +47,8 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "websocket accept failed")
 		s.Logger.ErrorContext(ctx, "websocket accept failed", "error", err, "remote_addr", r.RemoteAddr)
+		event.Outcome = "error"
+		event.Error = err.Error()
 		return
 	}
 	defer c.CloseNow()
