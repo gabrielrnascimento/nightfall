@@ -55,8 +55,9 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.Logger.InfoContext(ctx, "client connected", "remote_addr", r.RemoteAddr)
 
 	client := &Client{
-		conn: c,
-		send: make(chan []byte, 256),
+		conn:   c,
+		send:   make(chan []byte, 256),
+		logger: s.Logger,
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()

@@ -17,6 +17,7 @@ type Client struct {
 	send             chan []byte
 	name             string
 	room             string
+	logger           *slog.Logger
 	messagesReceived atomic.Int64
 	messagesSent     atomic.Int64
 }
@@ -146,11 +147,14 @@ func (c *Client) handleJoin(ctx context.Context, content []byte) error {
 	joinedMsg := fmt.Sprintf(`{"type":"joined","room":"%s"}`, room.name)
 	c.send <- []byte(joinedMsg)
 
-	slog.InfoContext(ctx, "player joined", "name", c.name, "room", c.room)
+	c.logger.InfoContext(ctx, "player joined", "name", c.name, "room", c.room)
 	return nil
 }
 
 func (c *Client) handleLeave(ctx context.Context, content []byte) error {
+	ctx, span := tracer.Start(ctx, "websocket.message.leave")
+	defer span.End()
+
 	var msg LeaveMessage
 	if err := json.Unmarshal(content, &msg); err != nil {
 		return err
@@ -170,12 +174,15 @@ func (c *Client) handleLeave(ctx context.Context, content []byte) error {
 		}
 	}
 
-	slog.InfoContext(ctx, "player left", "name", c.name, "room", c.room)
+	c.logger.InfoContext(ctx, "player left", "name", c.name, "room", c.room)
 	c.room = ""
 	return nil
 }
 
 func (c *Client) handleStart(ctx context.Context, content []byte) error {
+	ctx, span := tracer.Start(ctx, "websocket.message.start")
+	defer span.End()
+
 	var msg StartMessage
 	if err := json.Unmarshal(content, &msg); err != nil {
 		return err
@@ -204,11 +211,14 @@ func (c *Client) handleStart(ctx context.Context, content []byte) error {
 
 	room.broadcast([]byte(startMessage), nil)
 
-	slog.InfoContext(ctx, "game started", "room", c.room, "player_count", len(players))
+	c.logger.InfoContext(ctx, "game started", "room", c.room, "player_count", len(players))
 	return nil
 }
 
 func (c *Client) handleReady(ctx context.Context, content []byte) error {
+	ctx, span := tracer.Start(ctx, "websocket.message.ready")
+	defer span.End()
+
 	var msg ReadyMessage
 	if err := json.Unmarshal(content, &msg); err != nil {
 		return err
@@ -224,6 +234,6 @@ func (c *Client) handleReady(ctx context.Context, content []byte) error {
 	readyMsg := fmt.Sprintf(`{"type":"user_ready","name":"%s"}`, c.name)
 	room.broadcast([]byte(readyMsg), nil)
 
-	slog.InfoContext(ctx, "player ready", "name", c.name, "room", c.room)
+	c.logger.InfoContext(ctx, "player ready", "name", c.name, "room", c.room)
 	return nil
 }
