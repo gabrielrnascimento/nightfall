@@ -206,12 +206,9 @@ func (c *Client) handleStart(ctx context.Context, content []byte) error {
 
 	pRoles := game.Start()
 
-	rolesJson, _ := json.Marshal(pRoles)
-	startMessage := fmt.Sprintf(`{"type":"game_started","roles":%s}`, rolesJson)
+	room.broadcast([]byte(`{"type":"game_started"}`), nil)
 
-	room.broadcast([]byte(startMessage), nil)
-
-	c.logger.InfoContext(ctx, "game started", "room", c.room, "player_count", len(players))
+	c.logger.InfoContext(ctx, "game started", "room", c.room, "player_count", len(players), "roles", pRoles)
 	return nil
 }
 
