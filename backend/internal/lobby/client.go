@@ -195,12 +195,13 @@ func (c *Client) handleStart(ctx context.Context, content []byte) error {
 	}
 	hub.mutex.RUnlock()
 
-	room.mutex.RLock()
+	room.mutex.Lock()
 	var players []string
 	for client := range room.clients {
 		players = append(players, client.name)
 	}
-	room.mutex.RUnlock()
+	room.gameStarted = true
+	room.mutex.Unlock()
 
 	game := game.NewGame(players)
 

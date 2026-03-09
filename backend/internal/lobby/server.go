@@ -86,6 +86,7 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			event.Room = &RoomContext{
 				ID:          room.name,
 				PlayerCount: len(room.clients),
+				GameStarted: room.gameStarted,
 			}
 			room.mutex.RUnlock()
 		}

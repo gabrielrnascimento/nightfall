@@ -71,7 +71,7 @@ func (e *SessionEvent) buildArgs(ctx context.Context) []any {
 	}
 
 	if e.Room != nil {
-		args = append(args, "room.id", e.Room.ID, "room.player_count", e.Room.PlayerCount)
+		args = append(args, "room.id", e.Room.ID, "room.player_count", e.Room.PlayerCount, "room.game_started", e.Room.GameStarted)
 	}
 
 	if e.Stats != nil {
