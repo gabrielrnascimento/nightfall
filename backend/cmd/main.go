@@ -24,15 +24,17 @@ func main() {
 func run() error {
 	ctx := context.Background()
 
-	shutdown, err := telemetry.Setup(ctx, "nightfall-backend", "0.1.0")
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err := shutdown(ctx); err != nil {
-			slog.Error("failed to shutdown telemetry", "error", err)
+	if os.Getenv("ENABLE_OTEL") == "true" {
+		shutdown, err := telemetry.Setup(ctx, "nightfall-backend", "0.1.0")
+		if err != nil {
+			return err
 		}
-	}()
+		defer func() {
+			if err := shutdown(ctx); err != nil {
+				slog.Error("failed to shutdown telemetry", "error", err)
+			}
+		}()
+	}
 
 	l, err := net.Listen("tcp", "127.0.0.1:3001")
 	if err != nil {
