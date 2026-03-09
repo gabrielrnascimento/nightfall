@@ -10,6 +10,9 @@ make run
 # or
 go run ./cmd/main.go
 
+# Run the server with OTel telemetry enabled
+make run-otel
+
 # Build binary
 make build
 
@@ -50,19 +53,13 @@ cd observability && docker compose up -d
 
 **Hub concurrency**: `Hub` and `Room` use `sync.RWMutex`. The global `hub` singleton is in `hub.go`. Always acquire the lock before reading/writing room state.
 
+**Room handler locks**: Message handlers that only read room state use `room.mutex.RLock()`. Handlers that write room state (e.g. `handleStart` sets `gameStarted`) use `room.mutex.Lock()`. Don't downgrade a write lock to a read lock when modifying handlers.
+
 ## Testing
 
 **Game role randomness**: `game.Start()` shuffles players via `rand.Shuffle` before assigning roles, so role-to-player mapping is non-deterministic. Test *invariants* (all players assigned, correct role set present) rather than exact mappings.
 
-**OTel span injection (no SDK required)**: To test span ID extraction in unit tests, inject a `trace.SpanContext` directly:
-```go
-sc := trace.NewSpanContext(trace.SpanContextConfig{
-    TraceID:    traceID,
-    SpanID:     spanID,
-    TraceFlags: trace.FlagsSampled,
-})
-ctx := trace.ContextWithSpanContext(context.Background(), sc)
-```
+**OTel span injection (no SDK required)**: To test span context propagation (e.g. in `Emit`), inject a `trace.SpanContext` via `trace.ContextWithSpanContext(context.Background(), sc)`. See `wide_event_test.go` for the pattern.
 
 **Global `hub` singleton**: The `hub` in `hub.go` is package-level and shared across all parallel tests. Use a unique room name per test subtest to avoid cross-test contamination.
 
