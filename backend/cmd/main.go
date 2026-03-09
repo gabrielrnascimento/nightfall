@@ -30,7 +30,9 @@ func run() error {
 			return err
 		}
 		defer func() {
-			if err := shutdown(ctx); err != nil {
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			if err := shutdown(shutdownCtx); err != nil {
 				slog.Error("failed to shutdown telemetry", "error", err)
 			}
 		}()
