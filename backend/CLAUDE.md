@@ -13,7 +13,7 @@ go run ./cmd/main.go
 # Run the server with OTel telemetry enabled
 make run-otel
 
-# Build binary
+# Build binary (use this, not go build directly — avoids dropping a stray main binary)
 make build
 
 # Run all tests
@@ -55,6 +55,8 @@ cd observability && docker compose up -d
 
 **Room handler locks**: Message handlers that only read room state use `room.mutex.RLock()`. Handlers that write room state (e.g. `handleStart` sets `gameStarted`) use `room.mutex.Lock()`. Don't downgrade a write lock to a read lock when modifying handlers.
 
+**Shutdown timeout**: `telemetry.ShutdownTimeout` (5s) is defined in `internal/telemetry/telemetry.go` — use it rather than a raw duration when calling the shutdown func from `cmd/main.go`.
+
 ## Testing
 
 **Game role randomness**: `game.Start()` shuffles players via `rand.Shuffle` before assigning roles, so role-to-player mapping is non-deterministic. Test *invariants* (all players assigned, correct role set present) rather than exact mappings.
@@ -64,6 +66,8 @@ cd observability && docker compose up -d
 **Global `hub` singleton**: The `hub` in `hub.go` is package-level and shared across all parallel tests. Use a unique room name per test subtest to avoid cross-test contamination.
 
 **`SessionEvent` testability**: `SessionEvent.buildArgs()` is an unexported pure helper — test it directly within `package lobby` to assert args construction without `slog` side effects. Trace/span ID extraction from context happens in `Emit()`, not in `buildArgs()`.
+
+**Testing `Emit`**: `Emit` calls `slog.InfoContext` (don't try to capture log output). Instead, assert the struct mutation: `Emit` writes `e.TraceID`/`e.SpanID` from the span in context. See `TestEmit_ExtractsSpanFromContext` in `wide_event_test.go`.
 
 ## Git
 
