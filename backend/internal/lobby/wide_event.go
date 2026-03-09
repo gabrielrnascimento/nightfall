@@ -7,6 +7,13 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+type Outcome string
+
+const (
+	OutcomeSuccess Outcome = "success"
+	OutcomeError   Outcome = "error"
+)
+
 type SessionEvent struct {
 	TraceID    string
 	SpanID     string
@@ -14,7 +21,7 @@ type SessionEvent struct {
 	Event      string
 	RemoteAddr string
 	DurationMs int64
-	Outcome    string
+	Outcome    Outcome
 	Error      string
 
 	Player *PlayerContext

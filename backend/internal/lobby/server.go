@@ -47,7 +47,7 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "websocket accept failed")
 		s.Logger.ErrorContext(ctx, "websocket accept failed", "error", err, "remote_addr", r.RemoteAddr)
-		event.Outcome = "error"
+		event.Outcome = OutcomeError
 		event.Error = err.Error()
 		return
 	}
@@ -97,12 +97,12 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if err == nil || websocket.CloseStatus(err) == websocket.StatusNormalClosure {
 		span.SetStatus(codes.Ok, "")
-		event.Outcome = "success"
+		event.Outcome = OutcomeSuccess
 		s.Logger.InfoContext(ctx, "client disconnected", "remote_addr", r.RemoteAddr)
 	} else {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "abnormal disconnect")
-		event.Outcome = "error"
+		event.Outcome = OutcomeError
 		event.Error = err.Error()
 		s.Logger.ErrorContext(ctx, "client disconnected with error", "remote_addr", r.RemoteAddr, "error", err)
 	}

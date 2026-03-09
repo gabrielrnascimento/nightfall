@@ -27,7 +27,7 @@ func baseEvent() *SessionEvent {
 		Event:      "session_end",
 		RemoteAddr: "127.0.0.1:9999",
 		DurationMs: 42,
-		Outcome:    "ok",
+		Outcome:    OutcomeSuccess,
 	}
 }
 
