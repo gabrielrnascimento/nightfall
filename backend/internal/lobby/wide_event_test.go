@@ -1,6 +1,7 @@
 package lobby
 
 import (
+	"context"
 	"encoding/hex"
 	"testing"
 
@@ -53,7 +54,7 @@ func TestBuildArgs_NoSpanInContext(t *testing.T) {
 	}
 }
 
-func TestBuildArgs_ValidSpanInContext(t *testing.T) {
+func TestBuildArgs_TraceAndSpanIDPopulated(t *testing.T) {
 	traceIDBytes, _ := hex.DecodeString("0af7651916cd43dd8448eb211c80319c")
 	spanIDBytes, _ := hex.DecodeString("b7ad6b7169203331")
 
@@ -136,13 +137,16 @@ func TestBuildArgs_RoomNil(t *testing.T) {
 
 func TestBuildArgs_RoomSet(t *testing.T) {
 	e := baseEvent()
-	e.Room = &RoomContext{ID: "room-7", PlayerCount: 3}
+	e.Room = &RoomContext{ID: "room-7", PlayerCount: 3, GameStarted: true}
 	m := argsMap(e.buildArgs())
 	if got := m["room.id"]; got != "room-7" {
 		t.Errorf("room.id: want %q, got %q", "room-7", got)
 	}
 	if got := m["room.player_count"]; got != 3 {
 		t.Errorf("room.player_count: want 3, got %v", got)
+	}
+	if got := m["room.game_started"]; got != true {
+		t.Errorf("room.game_started: want true, got %v", got)
 	}
 }
 
@@ -166,5 +170,32 @@ func TestBuildArgs_StatsSet(t *testing.T) {
 	}
 	if got := m["messages_sent"]; got != int64(5) {
 		t.Errorf("messages_sent: want 5, got %v", got)
+	}
+}
+
+func TestEmit_ExtractsSpanFromContext(t *testing.T) {
+	traceIDBytes, _ := hex.DecodeString("0af7651916cd43dd8448eb211c80319c")
+	spanIDBytes, _ := hex.DecodeString("b7ad6b7169203331")
+
+	var traceID trace.TraceID
+	var spanID trace.SpanID
+	copy(traceID[:], traceIDBytes)
+	copy(spanID[:], spanIDBytes)
+
+	sc := trace.NewSpanContext(trace.SpanContextConfig{
+		TraceID:    traceID,
+		SpanID:     spanID,
+		TraceFlags: trace.FlagsSampled,
+	})
+	ctx := trace.ContextWithSpanContext(context.Background(), sc)
+
+	e := baseEvent()
+	e.Emit(ctx, e.Event)
+
+	if e.TraceID != traceID.String() {
+		t.Errorf("TraceID: want %q, got %q", traceID.String(), e.TraceID)
+	}
+	if e.SpanID != spanID.String() {
+		t.Errorf("SpanID: want %q, got %q", spanID.String(), e.SpanID)
 	}
 }
