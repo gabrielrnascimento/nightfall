@@ -13,6 +13,8 @@ import (
 	"github.com/gabrielrnascimento/nightfall/backend/internal/telemetry"
 )
 
+const httpShutdownTimeout = 10 * time.Second
+
 func main() {
 	err := run()
 	if err != nil {
@@ -30,7 +32,7 @@ func run() error {
 			return err
 		}
 		defer func() {
-			shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), telemetry.ShutdownTimeout)
 			defer cancel()
 			if err := shutdown(shutdownCtx); err != nil {
 				slog.Error("failed to shutdown telemetry", "error", err)
@@ -63,7 +65,7 @@ func run() error {
 		slog.Info("terminating", "signal", sig)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithTimeout(context.Background(), httpShutdownTimeout)
 	defer cancel()
 
 	return s.Shutdown(ctx)

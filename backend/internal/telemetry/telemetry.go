@@ -21,11 +21,13 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
+const ShutdownTimeout = 5 * time.Second
+
 func Setup(ctx context.Context, serviceName, serviceVersion string) (shutdown func(context.Context) error, err error) {
 	var cleanups []func(context.Context) error
 
 	shutdown = func(ctx context.Context) error {
-		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		ctx, cancel := context.WithTimeout(ctx, ShutdownTimeout)
 		defer cancel()
 		var errs []error
 		for _, fn := range cleanups {
