@@ -45,13 +45,7 @@ type SessionStats struct {
 	MessagesReceived int64
 }
 
-func (e *SessionEvent) buildArgs(ctx context.Context) []any {
-	span := trace.SpanFromContext(ctx)
-	if span.SpanContext().IsValid() {
-		e.TraceID = span.SpanContext().TraceID().String()
-		e.SpanID = span.SpanContext().SpanID().String()
-	}
-
+func (e *SessionEvent) buildArgs() []any {
 	args := []any{
 		"service", e.Service,
 		"event", e.Event,
@@ -82,5 +76,10 @@ func (e *SessionEvent) buildArgs(ctx context.Context) []any {
 }
 
 func (e *SessionEvent) Emit(ctx context.Context, message string) {
-	slog.InfoContext(ctx, message, e.buildArgs(ctx)...)
+	span := trace.SpanFromContext(ctx)
+	if span.SpanContext().IsValid() {
+		e.TraceID = span.SpanContext().TraceID().String()
+		e.SpanID = span.SpanContext().SpanID().String()
+	}
+	slog.InfoContext(ctx, message, e.buildArgs()...)
 }
