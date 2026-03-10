@@ -30,6 +30,15 @@ go test -v ./internal/lobby/ -run TestName
 
 # Run tests with race detector (required for concurrency changes)
 go test -race ./...
+
+# Format all files with goimports
+make fmt
+
+# Run all linters (golangci-lint)
+make lint
+
+# Run fmt + lint together
+make check
 ```
 
 ## Observability Stack
@@ -54,6 +63,8 @@ cd observability && docker compose up -d
 **Hub concurrency**: `Hub` and `Room` use `sync.RWMutex`. The global `hub` singleton is in `hub.go`. Always acquire the lock before reading/writing room state.
 
 **Room handler locks**: Message handlers that only read room state use `room.mutex.RLock()`. Handlers that write room state (e.g. `handleStart` sets `gameStarted`) use `room.mutex.Lock()`. Don't downgrade a write lock to a read lock when modifying handlers.
+
+**golangci-lint config** (`backend/.golangci.yml`): Uses v2 format — formatters (`goimports`) go under `formatters.enable`, not `linters.enable`; exclusions go under `linters.exclusions.rules`, not `issues.exclude-rules`; `gosimple` no longer exists (merged into `staticcheck`). Path patterns in YAML must use single quotes (e.g. `'_test\.go'`).
 
 **Shutdown timeout**: `telemetry.ShutdownTimeout` (5s) is defined in `internal/telemetry/telemetry.go` — use it rather than a raw duration when calling the shutdown func from `cmd/main.go`.
 
