@@ -3,9 +3,10 @@ package lobby
 import "sync"
 
 type Room struct {
-	name    string
-	clients map[*Client]bool
-	mutex   sync.RWMutex
+	name        string
+	clients     map[*Client]bool
+	gameStarted bool
+	mutex       sync.RWMutex
 }
 
 func (r *Room) addClient(client *Client) {

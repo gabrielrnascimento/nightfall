@@ -4,16 +4,22 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
+	"sync/atomic"
 
 	"github.com/coder/websocket"
 	"github.com/gabrielrnascimento/nightfall/backend/internal/game"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type Client struct {
-	conn *websocket.Conn
-	send chan []byte
-	name string
-	room string
+	conn             *websocket.Conn
+	send             chan []byte
+	name             string
+	room             string
+	logger           *slog.Logger
+	messagesReceived atomic.Int64
+	messagesSent     atomic.Int64
 }
 
 func (c *Client) writePump(ctx context.Context) {
@@ -28,6 +34,7 @@ func (c *Client) writePump(ctx context.Context) {
 			if err := c.conn.Write(ctx, websocket.MessageText, message); err != nil {
 				return
 			}
+			c.messagesSent.Add(1)
 
 		case <-ctx.Done():
 			return
@@ -58,20 +65,21 @@ func (c *Client) readPump(ctx context.Context) error {
 			}
 			return err
 		}
+		c.messagesReceived.Add(1)
 
-		if err := c.handleMessage(content); err != nil {
+		if err := c.handleMessage(ctx, content); err != nil {
 			return err
 		}
 	}
 }
 
-func (c *Client) handleMessage(content []byte) error {
+func (c *Client) handleMessage(ctx context.Context, content []byte) error {
+	ctx, span := tracer.Start(ctx, "websocket.message")
+	defer span.End()
+
 	if c.name == "" {
-		err := c.handleJoin(content)
-		if err != nil {
-			return err
-		}
-		return nil
+		span.SetAttributes(attribute.String("message.type", "join"))
+		return c.handleJoin(ctx, content)
 	}
 
 	var env Envelope
@@ -79,21 +87,26 @@ func (c *Client) handleMessage(content []byte) error {
 		return fmt.Errorf("invalid message: %w", err)
 	}
 
+	span.SetAttributes(attribute.String("message.type", env.Type))
+
 	switch env.Type {
 	case "join":
-		return c.handleJoin(content)
+		return c.handleJoin(ctx, content)
 	case "leave":
-		return c.handleLeave(content)
+		return c.handleLeave(ctx, content)
 	case "start":
-		return c.handleStart(content)
+		return c.handleStart(ctx, content)
 	case "ready":
-		return c.handleReady(content)
+		return c.handleReady(ctx, content)
 	default:
 		return fmt.Errorf("unknown message type: %s", env.Type)
 	}
 }
 
-func (c *Client) handleJoin(content []byte) error {
+func (c *Client) handleJoin(ctx context.Context, content []byte) error {
+	ctx, span := tracer.Start(ctx, "websocket.message.join")
+	defer span.End()
+
 	var joinMsg JoinMessage
 	if err := json.Unmarshal(content, &joinMsg); err != nil {
 		return err
@@ -134,10 +147,14 @@ func (c *Client) handleJoin(content []byte) error {
 	joinedMsg := fmt.Sprintf(`{"type":"joined","room":"%s"}`, room.name)
 	c.send <- []byte(joinedMsg)
 
+	c.logger.InfoContext(ctx, "player joined", "name", c.name, "room", c.room)
 	return nil
 }
 
-func (c *Client) handleLeave(content []byte) error {
+func (c *Client) handleLeave(ctx context.Context, content []byte) error {
+	ctx, span := tracer.Start(ctx, "websocket.message.leave")
+	defer span.End()
+
 	var msg LeaveMessage
 	if err := json.Unmarshal(content, &msg); err != nil {
 		return err
@@ -157,11 +174,15 @@ func (c *Client) handleLeave(content []byte) error {
 		}
 	}
 
+	c.logger.InfoContext(ctx, "player left", "name", c.name, "room", c.room)
 	c.room = ""
 	return nil
 }
 
-func (c *Client) handleStart(content []byte) error {
+func (c *Client) handleStart(ctx context.Context, content []byte) error {
+	ctx, span := tracer.Start(ctx, "websocket.message.start")
+	defer span.End()
+
 	var msg StartMessage
 	if err := json.Unmarshal(content, &msg); err != nil {
 		return err
@@ -174,26 +195,28 @@ func (c *Client) handleStart(content []byte) error {
 	}
 	hub.mutex.RUnlock()
 
-	room.mutex.RLock()
+	room.mutex.Lock()
 	var players []string
 	for client := range room.clients {
 		players = append(players, client.name)
 	}
-	room.mutex.RUnlock()
+	room.gameStarted = true
+	room.mutex.Unlock()
 
 	game := game.NewGame(players)
 
 	pRoles := game.Start()
 
-	rolesJson, _ := json.Marshal(pRoles)
-	startMessage := fmt.Sprintf(`{"type":"game_started","roles":%s}`, rolesJson)
+	room.broadcast([]byte(`{"type":"game_started"}`), nil)
 
-	room.broadcast([]byte(startMessage), nil)
-
+	c.logger.InfoContext(ctx, "game started", "room", c.room, "player_count", len(players), "roles", pRoles)
 	return nil
 }
 
-func (c *Client) handleReady(content []byte) error {
+func (c *Client) handleReady(ctx context.Context, content []byte) error {
+	ctx, span := tracer.Start(ctx, "websocket.message.ready")
+	defer span.End()
+
 	var msg ReadyMessage
 	if err := json.Unmarshal(content, &msg); err != nil {
 		return err
@@ -209,5 +232,6 @@ func (c *Client) handleReady(content []byte) error {
 	readyMsg := fmt.Sprintf(`{"type":"user_ready","name":"%s"}`, c.name)
 	room.broadcast([]byte(readyMsg), nil)
 
+	c.logger.InfoContext(ctx, "player ready", "name", c.name, "room", c.room)
 	return nil
 }

@@ -2,6 +2,7 @@ package lobby
 
 import (
 	"context"
+	"log/slog"
 	"net/http/httptest"
 	"testing"
 	"time"
@@ -9,12 +10,19 @@ import (
 	"github.com/coder/websocket"
 )
 
+type testWriter struct{ t *testing.T }
+
+func (tw *testWriter) Write(p []byte) (int, error) {
+	tw.t.Log(string(p))
+	return len(p), nil
+}
+
 func Test_simpleServer(t *testing.T) {
 	t.Run("join and leave room", func(t *testing.T) {
 		t.Parallel()
 
 		s := httptest.NewServer(Server{
-			Logf: t.Logf,
+			Logger: slog.New(slog.NewTextHandler(&testWriter{t}, nil)),
 		})
 		defer s.Close()
 
@@ -68,7 +76,7 @@ func Test_simpleServer(t *testing.T) {
 		t.Parallel()
 
 		s := httptest.NewServer(Server{
-			Logf: t.Logf,
+			Logger: slog.New(slog.NewTextHandler(&testWriter{t}, nil)),
 		})
 		defer s.Close()
 
@@ -102,7 +110,7 @@ func Test_simpleServer(t *testing.T) {
 		}
 		_, bytes, _ = c.Read(ctx)
 		got = string(bytes)
-		want = `{"type":"game_started","roles":{"Assassin":"Alice"}}`
+		want = `{"type":"game_started"}`
 		if got != want {
 			t.Errorf("got %v want %v", got, want)
 		}
@@ -112,7 +120,7 @@ func Test_simpleServer(t *testing.T) {
 		t.Parallel()
 
 		s := httptest.NewServer(Server{
-			Logf: t.Logf,
+			Logger: slog.New(slog.NewTextHandler(&testWriter{t}, nil)),
 		})
 		defer s.Close()
 
@@ -137,15 +145,17 @@ func Test_simpleServer(t *testing.T) {
 		}
 
 		_ = c1.Write(ctx, websocket.MessageText, []byte(`{"type": "start"}`))
-		_, bytes, _ = c1.Read(ctx)
-		wantStart := `{"type":"game_started","roles":{"Assassin":"Alice","Detective":"Bob"}}`
-		if string(bytes) != wantStart {
-			t.Errorf("Alice didn't get game_started, got %s", string(bytes))
+		_, aliceBytes, _ := c1.Read(ctx)
+		_, bobBytes, _ := c2.Read(ctx)
+
+		if string(aliceBytes) != string(bobBytes) {
+			t.Errorf("clients received different game_started messages: Alice=%s Bob=%s", aliceBytes, bobBytes)
 		}
 
-		_, bytes, _ = c2.Read(ctx)
-		if string(bytes) != wantStart {
-			t.Errorf("Bob didn't get game_started, got %s", string(bytes))
+		got = string(aliceBytes)
+		want = `{"type":"game_started"}`
+		if got != want {
+			t.Errorf("got %v want %v", got, want)
 		}
 
 		_ = c2.Write(ctx, websocket.MessageText, []byte(`{"type": "leave"}`))
@@ -163,7 +173,7 @@ func Test_simpleServer(t *testing.T) {
 		t.Parallel()
 
 		s := httptest.NewServer(Server{
-			Logf: t.Logf,
+			Logger: slog.New(slog.NewTextHandler(&testWriter{t}, nil)),
 		})
 		defer s.Close()
 

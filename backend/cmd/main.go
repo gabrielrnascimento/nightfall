@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -10,27 +10,45 @@ import (
 	"time"
 
 	"github.com/gabrielrnascimento/nightfall/backend/internal/lobby"
+	"github.com/gabrielrnascimento/nightfall/backend/internal/telemetry"
 )
 
-func main() {
-	log.SetFlags(0)
+const httpShutdownTimeout = 10 * time.Second
 
+func main() {
 	err := run()
 	if err != nil {
-		log.Fatal(err)
+		slog.Error("fatal error", "error", err)
+		os.Exit(1)
 	}
 }
 
 func run() error {
+	ctx := context.Background()
+
+	if os.Getenv("ENABLE_OTEL") == "true" {
+		shutdown, err := telemetry.Setup(ctx, "nightfall-backend", "0.1.0")
+		if err != nil {
+			return err
+		}
+		defer func() {
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), telemetry.ShutdownTimeout)
+			defer cancel()
+			if err := shutdown(shutdownCtx); err != nil {
+				slog.Error("failed to shutdown telemetry", "error", err)
+			}
+		}()
+	}
+
 	l, err := net.Listen("tcp", "127.0.0.1:3001")
 	if err != nil {
 		return err
 	}
-	log.Printf("listening on ws://%v", l.Addr())
+	slog.Info("listening", "addr", "ws://"+l.Addr().String())
 
 	s := &http.Server{
 		Handler: lobby.Server{
-			Logf: log.Printf,
+			Logger: slog.Default(),
 		},
 	}
 	errC := make(chan error, 1)
@@ -42,12 +60,12 @@ func run() error {
 	signal.Notify(sigs, os.Interrupt)
 	select {
 	case err := <-errC:
-		log.Printf("failed to serve: %v", err)
+		slog.Error("failed to serve", "error", err)
 	case sig := <-sigs:
-		log.Printf("terminating: %v", sig)
+		slog.Info("terminating", "signal", sig)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctx, cancel := context.WithTimeout(context.Background(), httpShutdownTimeout)
 	defer cancel()
 
 	return s.Shutdown(ctx)

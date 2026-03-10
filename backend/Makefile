@@ -8,8 +8,14 @@ build:
 run:
 	go run ./cmd/main.go
 
+run-otel:
+	ENABLE_OTEL=true go run ./cmd/main.go
+
 test:
-	go test -v ./...
+	go test -race ./...
+
+testv:
+	go test -race -v ./...
 
 clean:
 	go clean
