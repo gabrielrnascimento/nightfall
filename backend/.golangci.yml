@@ -1,0 +1,29 @@
+version: "2"
+
+linters:
+  enable:
+    - govet        # go vet — catches common mistakes
+    - errcheck     # unchecked errors
+    - staticcheck  # SA/S/QF/S checks (replaces megacheck + gosimple)
+    - ineffassign  # assigned but never used
+    - unused       # exported/unexported unused identifiers
+    - revive       # golint replacement with more rules
+    - gocritic     # opinionated style/perf checks
+  settings:
+    revive:
+      rules:
+        - name: exported
+          disabled: true  # don't require doc comments on every export (small project)
+  exclusions:
+    rules:
+      - path: '_test\.go'
+        linters:
+          - errcheck  # test helpers often ignore errors intentionally
+
+formatters:
+  enable:
+    - goimports    # enforces goimports formatting (includes gofmt)
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/gabrielrnascimento/nightfall
