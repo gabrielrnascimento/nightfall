@@ -41,27 +41,27 @@ func NewGame(players []string) Game {
 }
 
 func (g *Game) assignRole(playerRoles PlayerRoles) GameRole {
-	assassinPlayer, _ := playerRoles[Assassin]
+	assassinPlayer := playerRoles[Assassin]
 	if assassinPlayer == "" {
 		return Assassin
 	}
 
-	detectivePlayer, _ := playerRoles[Detective]
+	detectivePlayer := playerRoles[Detective]
 	if detectivePlayer == "" {
 		return Detective
 	}
 
-	angelPlayer, _ := playerRoles[Angel]
+	angelPlayer := playerRoles[Angel]
 	if angelPlayer == "" {
 		return Angel
 	}
 
-	escortPlayer, _ := playerRoles[Escort]
+	escortPlayer := playerRoles[Escort]
 	if escortPlayer == "" {
 		return Escort
 	}
 
-	sadBoyPlayer, _ := playerRoles[Sadboy]
+	sadBoyPlayer := playerRoles[Sadboy]
 	if sadBoyPlayer == "" {
 		return Sadboy
 	}

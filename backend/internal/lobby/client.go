@@ -8,8 +8,9 @@ import (
 	"sync/atomic"
 
 	"github.com/coder/websocket"
-	"github.com/gabrielrnascimento/nightfall/backend/internal/game"
 	"go.opentelemetry.io/otel/attribute"
+
+	"github.com/gabrielrnascimento/nightfall/backend/internal/game"
 )
 
 type Client struct {
@@ -27,7 +28,7 @@ func (c *Client) writePump(ctx context.Context) {
 		select {
 		case message, ok := <-c.send:
 			if !ok {
-				c.conn.Close(websocket.StatusAbnormalClosure, "channel closed")
+				_ = c.conn.Close(websocket.StatusAbnormalClosure, "channel closed")
 				return
 			}
 

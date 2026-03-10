@@ -53,7 +53,7 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		event.Error = err.Error()
 		return
 	}
-	defer c.CloseNow()
+	defer func() { _ = c.CloseNow() }()
 	s.Logger.InfoContext(ctx, "client connected", "remote_addr", r.RemoteAddr)
 
 	client := &Client{
