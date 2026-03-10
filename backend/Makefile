@@ -1,4 +1,4 @@
-.PHONY: build run test clean lint fmt
+.PHONY: build run test clean lint fmt check
 
 BINARY_NAME=nightfall
 
@@ -26,3 +26,5 @@ lint:
 
 fmt:
 	goimports -w -local github.com/gabrielrnascimento/nightfall .
+
+check: fmt lint
