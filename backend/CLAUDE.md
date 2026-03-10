@@ -65,7 +65,7 @@ cd observability && docker compose up -d
 
 **Global `hub` singleton**: The `hub` in `hub.go` is package-level and shared across all parallel tests. Use a unique room name per test subtest to avoid cross-test contamination.
 
-**`SessionEvent` testability**: `SessionEvent.buildArgs()` is an unexported pure helper — test it directly within `package lobby` to assert args construction without `slog` side effects. Trace/span ID extraction from context happens in `Emit()`, not in `buildArgs()`.
+**`SessionEvent` testability**: `SessionEvent.buildArgs()` is an unexported pure helper — test it directly within `package telemetry` to assert args construction without `slog` side effects. Trace/span ID extraction from context happens in `Emit()`, not in `buildArgs()`.
 
 **Testing `Emit`**: `Emit` calls `slog.InfoContext` (don't try to capture log output). Instead, assert the struct mutation: `Emit` writes `e.TraceID`/`e.SpanID` from the span in context. See `TestEmit_ExtractsSpanFromContext` in `wide_event_test.go`.
 
