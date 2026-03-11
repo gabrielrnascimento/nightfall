@@ -18,6 +18,11 @@ var tracer = otel.Tracer("nightfall/lobby")
 
 type Server struct {
 	Logger *slog.Logger
+	hub    HubStore
+}
+
+func NewServer(hub HubStore, logger *slog.Logger) *Server {
+	return &Server{hub: hub, Logger: logger}
 }
 
 func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -60,38 +65,26 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		conn:   c,
 		send:   make(chan []byte, 256),
 		logger: s.Logger,
+		hub:    s.hub,
 	}
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	errChan := make(chan error, 1)
-
-	go func() {
-		errChan <- client.readPump(ctx)
-	}()
-
-	go func() {
-		client.writePump(ctx)
-	}()
-
-	err = <-errChan
+	err = client.run(ctx)
 
 	if client.name != "" {
 		event.Player = &telemetry.PlayerContext{ID: client.name}
 	}
-	if client.room != "" {
-		hub.mutex.RLock()
-		room := hub.rooms[client.room]
-		hub.mutex.RUnlock()
-		if room != nil {
-			room.mutex.RLock()
-			event.Room = &telemetry.RoomContext{
-				ID:          room.name,
-				PlayerCount: len(room.clients),
-				GameStarted: room.gameStarted,
-			}
-			room.mutex.RUnlock()
+	if room := client.currentRoom; room != nil {
+		room.mutex.RLock()
+		event.Room = &telemetry.RoomContext{
+			ID:          room.name,
+			PlayerCount: len(room.clients),
+			GameStarted: room.gameStarted,
 		}
+		room.mutex.RUnlock()
+	} else if client.room != "" {
+		event.Room = &telemetry.RoomContext{ID: client.room}
 	}
 	event.Stats = &telemetry.SessionStats{
 		MessagesReceived: client.messagesReceived.Load(),

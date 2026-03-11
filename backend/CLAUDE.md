@@ -60,7 +60,7 @@ cd observability && docker compose up -d
 
 **Wide events**: At the end of each WebSocket session, a `SessionEvent` is emitted via `Emit(ctx, message)` — a single structured log capturing the full session lifecycle (duration, outcome, player/room context). Add fields to `SessionEvent` in `wide_event.go` rather than scattering individual logs. The struct has no json tags — `Emit()` builds a flat slog `args` slice manually; add new fields there, not as struct tags.
 
-**Hub concurrency**: `Hub` and `Room` use `sync.RWMutex`. The global `hub` singleton is in `hub.go`. Always acquire the lock before reading/writing room state.
+**Hub concurrency**: `Hub` and `Room` use `sync.RWMutex`. Hub is injected via the `HubStore` interface — there is no global singleton. Create with `lobby.NewHub()` and pass to `lobby.NewServer(hub, logger)`. Always acquire the lock before reading/writing room state.
 
 **Room handler locks**: Message handlers that only read room state use `room.mutex.RLock()`. Handlers that write room state (e.g. `handleStart` sets `gameStarted`) use `room.mutex.Lock()`. Don't downgrade a write lock to a read lock when modifying handlers.
 
@@ -70,17 +70,21 @@ cd observability && docker compose up -d
 
 ## Testing
 
+**E2E test logger**: Use `slog.New(slog.NewJSONHandler(io.Discard, nil))` for the logger in httptest-based tests. A `testWriter` that calls `t.Log()` races with server goroutines that may still be logging after the test function returns.
+
 **Game role randomness**: `game.Start()` shuffles players via `rand.Shuffle` before assigning roles, so role-to-player mapping is non-deterministic. Test *invariants* (all players assigned, correct role set present) rather than exact mappings.
 
 **OTel span injection (no SDK required)**: To test span context propagation (e.g. in `Emit`), inject a `trace.SpanContext` via `trace.ContextWithSpanContext(context.Background(), sc)`. See `wide_event_test.go` for the pattern.
 
-**Global `hub` singleton**: The `hub` in `hub.go` is package-level and shared across all parallel tests. Use a unique room name per test subtest to avoid cross-test contamination.
+**Hub in tests**: `Hub` is no longer a global singleton — unit tests create a `fakeHub` (implements `HubStore`) and E2E tests call `NewHub()` directly. No shared state between tests.
 
 **`SessionEvent` testability**: `SessionEvent.buildArgs()` is an unexported pure helper — test it directly within `package telemetry` to assert args construction without `slog` side effects. Trace/span ID extraction from context happens in `Emit()`, not in `buildArgs()`.
 
 **Testing `Emit`**: `Emit` calls `slog.InfoContext` (don't try to capture log output). Instead, assert the struct mutation: `Emit` writes `e.TraceID`/`e.SpanID` from the span in context. See `TestEmit_ExtractsSpanFromContext` in `wide_event_test.go`.
 
 ## Git
+
+**Git hook**: Checks (fmt, lint, test) run on **push** via `.githooks/pre-push`, not pre-commit. Atomic commits are safe to make without running the full suite locally first.
 
 **Git root**: Repo root is `nightfall/`, not `backend/`. File paths in git commands must be prefixed with `backend/` (e.g. `git add backend/internal/...`).
 

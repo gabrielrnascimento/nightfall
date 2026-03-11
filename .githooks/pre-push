@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -e
+
+ROOT="$(git rev-parse --show-toplevel)"
+
+# Read pushed refs from stdin: <local-ref> <local-sha1> <remote-ref> <remote-sha1>
+while read local_ref local_sha remote_ref remote_sha; do
+  # Determine range of commits being pushed
+  if [ "$remote_sha" = "0000000000000000000000000000000000000000" ]; then
+    range="$local_sha"
+  else
+    range="$remote_sha..$local_sha"
+  fi
+
+  # Check if any backend/ files are in the push range
+  if git diff --name-only "$range" 2>/dev/null | grep -q '^backend/' || \
+     git show --name-only "$local_sha" 2>/dev/null | grep -q '^backend/'; then
+
+    echo "→ backend: formatting..."
+    (cd "$ROOT/backend" && make fmt)
+
+    echo "→ backend: linting..."
+    (cd "$ROOT/backend" && make lint)
+
+    echo "→ backend: testing..."
+    (cd "$ROOT/backend" && make test)
+
+    echo "✓ backend checks passed"
+    break
+  fi
+done
