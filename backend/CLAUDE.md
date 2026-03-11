@@ -30,6 +30,15 @@ go test -v ./internal/lobby/ -run TestName
 
 # Run tests with race detector (required for concurrency changes)
 go test -race ./...
+
+# Format all files with goimports
+make fmt
+
+# Run all linters (golangci-lint)
+make lint
+
+# Run fmt + lint together
+make check
 ```
 
 ## Observability Stack
@@ -55,6 +64,8 @@ cd observability && docker compose up -d
 
 **Room handler locks**: Message handlers that only read room state use `room.mutex.RLock()`. Handlers that write room state (e.g. `handleStart` sets `gameStarted`) use `room.mutex.Lock()`. Don't downgrade a write lock to a read lock when modifying handlers.
 
+**golangci-lint config** (`backend/.golangci.yml`): Uses v2 format — formatters (`goimports`) go under `formatters.enable`, not `linters.enable`; exclusions go under `linters.exclusions.rules`, not `issues.exclude-rules`; `gosimple` no longer exists (merged into `staticcheck`). Path patterns in YAML must use single quotes (e.g. `'_test\.go'`).
+
 **Shutdown timeout**: `telemetry.ShutdownTimeout` (5s) is defined in `internal/telemetry/telemetry.go` — use it rather than a raw duration when calling the shutdown func from `cmd/main.go`.
 
 ## Testing
@@ -65,7 +76,7 @@ cd observability && docker compose up -d
 
 **Global `hub` singleton**: The `hub` in `hub.go` is package-level and shared across all parallel tests. Use a unique room name per test subtest to avoid cross-test contamination.
 
-**`SessionEvent` testability**: `SessionEvent.buildArgs()` is an unexported pure helper — test it directly within `package lobby` to assert args construction without `slog` side effects. Trace/span ID extraction from context happens in `Emit()`, not in `buildArgs()`.
+**`SessionEvent` testability**: `SessionEvent.buildArgs()` is an unexported pure helper — test it directly within `package telemetry` to assert args construction without `slog` side effects. Trace/span ID extraction from context happens in `Emit()`, not in `buildArgs()`.
 
 **Testing `Emit`**: `Emit` calls `slog.InfoContext` (don't try to capture log output). Instead, assert the struct mutation: `Emit` writes `e.TraceID`/`e.SpanID` from the span in context. See `TestEmit_ExtractsSpanFromContext` in `wide_event_test.go`.
 

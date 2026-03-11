@@ -27,8 +27,7 @@ nightfall/
   - `hub.go` — global `Hub` (singleton) holds named `Room`s; each `Room` holds a set of `*Client`s with RW mutex
   - `client.go` — per-connection state; `readPump` and `writePump` goroutines
   - `types.go` — message type definitions
-  - `wide_event.go` — `SessionEvent` struct emitted as a structured slog log at session end (wide-event pattern)
-- **`internal/telemetry/`** — OpenTelemetry setup: traces via OTLP/gRPC to collector at `localhost:4317`, logs via `otelslog` bridge; uses a `multiHandler` that fans out to both OTel and stdout JSON
+- **`internal/telemetry/`** — OpenTelemetry setup: traces via OTLP/gRPC to collector at `localhost:4317`, logs via `otelslog` bridge; uses a `multiHandler` that fans out to both OTel and stdout JSON. Also owns `wide_event.go` — `SessionEvent` struct emitted as a structured slog log at session end (wide-event pattern).
 - **`observability/`** — Docker Compose stack: OTel Collector → Tempo (traces) + Loki (logs) → Grafana at `http://localhost:3003`
 
 ### Frontend (`frontend/`)
@@ -42,3 +41,11 @@ All messages are JSON with a `type` field. See `docs/WEBSOCKET_PROTOCOL.md` for 
 
 **Client → Server**: `join`, `leave`, `start`, `ready`
 **Server → Client**: `joined`, `left`, `user_joined`, `user_left`, `game_started`, `user_ready`
+
+## Development Setup
+
+After cloning, activate the version-controlled git hooks:
+```bash
+git config core.hooksPath .githooks
+```
+The pre-commit hook runs `make fmt`, `make lint`, and `make test` against `backend/` when Go files are staged.

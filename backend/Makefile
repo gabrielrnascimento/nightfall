@@ -1,4 +1,4 @@
-.PHONY: build run test clean
+.PHONY: build run test clean lint fmt check
 
 BINARY_NAME=nightfall
 
@@ -20,3 +20,11 @@ testv:
 clean:
 	go clean
 	rm -f $(BINARY_NAME)
+
+lint:
+	golangci-lint run ./...
+
+fmt:
+	goimports -w -local github.com/gabrielrnascimento/nightfall .
+
+check: fmt lint

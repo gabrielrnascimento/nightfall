@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -e
+
+ROOT="$(git rev-parse --show-toplevel)"
+
+# --- Backend (Go) ---
+if git diff --cached --name-only | grep -q '^backend/'; then
+  echo "→ backend: formatting..."
+  (cd "$ROOT/backend" && make fmt)
+
+  # Abort if fmt modified files so the user can re-stage them
+  if ! git diff --quiet; then
+    echo ""
+    echo "✗ goimports reformatted files. Please review and re-add them:"
+    git diff --name-only
+    exit 1
+  fi
+
+  echo "→ backend: linting..."
+  (cd "$ROOT/backend" && make lint)
+
+  echo "→ backend: testing..."
+  (cd "$ROOT/backend" && make test)
+
+  echo "✓ backend checks passed"
+fi
+
+# --- Frontend (JS) --- skipped until tooling is set up

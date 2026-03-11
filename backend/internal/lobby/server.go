@@ -10,6 +10,8 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
+
+	telemetry "github.com/gabrielrnascimento/nightfall/backend/internal/telemetry"
 )
 
 var tracer = otel.Tracer("nightfall/lobby")
@@ -24,7 +26,7 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	start := time.Now()
 
-	event := &SessionEvent{
+	event := &telemetry.SessionEvent{
 		Service:    "nightfall-backend",
 		Event:      "websocket.session",
 		RemoteAddr: r.RemoteAddr,
@@ -47,11 +49,11 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "websocket accept failed")
 		s.Logger.ErrorContext(ctx, "websocket accept failed", "error", err, "remote_addr", r.RemoteAddr)
-		event.Outcome = OutcomeError
+		event.Outcome = telemetry.OutcomeError
 		event.Error = err.Error()
 		return
 	}
-	defer c.CloseNow()
+	defer func() { _ = c.CloseNow() }()
 	s.Logger.InfoContext(ctx, "client connected", "remote_addr", r.RemoteAddr)
 
 	client := &Client{
@@ -75,7 +77,7 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	err = <-errChan
 
 	if client.name != "" {
-		event.Player = &PlayerContext{ID: client.name}
+		event.Player = &telemetry.PlayerContext{ID: client.name}
 	}
 	if client.room != "" {
 		hub.mutex.RLock()
@@ -83,7 +85,7 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		hub.mutex.RUnlock()
 		if room != nil {
 			room.mutex.RLock()
-			event.Room = &RoomContext{
+			event.Room = &telemetry.RoomContext{
 				ID:          room.name,
 				PlayerCount: len(room.clients),
 				GameStarted: room.gameStarted,
@@ -91,19 +93,19 @@ func (s Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			room.mutex.RUnlock()
 		}
 	}
-	event.Stats = &SessionStats{
+	event.Stats = &telemetry.SessionStats{
 		MessagesReceived: client.messagesReceived.Load(),
 		MessagesSent:     client.messagesSent.Load(),
 	}
 
 	if err == nil || websocket.CloseStatus(err) == websocket.StatusNormalClosure {
 		span.SetStatus(codes.Ok, "")
-		event.Outcome = OutcomeSuccess
+		event.Outcome = telemetry.OutcomeSuccess
 		s.Logger.InfoContext(ctx, "client disconnected", "remote_addr", r.RemoteAddr)
 	} else {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "abnormal disconnect")
-		event.Outcome = OutcomeError
+		event.Outcome = telemetry.OutcomeError
 		event.Error = err.Error()
 		s.Logger.ErrorContext(ctx, "client disconnected with error", "remote_addr", r.RemoteAddr, "error", err)
 	}

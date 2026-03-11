@@ -8,10 +8,10 @@ import (
 )
 
 type fakeHandler struct {
-	enabled  bool
-	records  []slog.Record
-	attrs    []slog.Attr
-	group    string
+	enabled bool
+	records []slog.Record
+	attrs   []slog.Attr
+	group   string
 }
 
 func (f *fakeHandler) Enabled(_ context.Context, _ slog.Level) bool { return f.enabled }
