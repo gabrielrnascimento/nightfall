@@ -46,10 +46,9 @@ func run() error {
 	}
 	slog.Info("listening", "addr", "ws://"+l.Addr().String())
 
+	hub := lobby.NewHub()
 	s := &http.Server{
-		Handler: lobby.Server{
-			Logger: slog.Default(),
-		},
+		Handler: lobby.NewServer(hub, slog.Default()),
 	}
 	errC := make(chan error, 1)
 	go func() {
