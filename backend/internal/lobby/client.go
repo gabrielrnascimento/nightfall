@@ -9,8 +9,7 @@ import (
 
 	"github.com/coder/websocket"
 	"go.opentelemetry.io/otel/attribute"
-
-	"github.com/gabrielrnascimento/nightfall/backend/internal/game"
+	"golang.org/x/sync/errgroup"
 )
 
 type Client struct {
@@ -18,9 +17,25 @@ type Client struct {
 	send             chan []byte
 	name             string
 	room             string
+	currentRoom      *Room
+	hub              HubStore
 	logger           *slog.Logger
 	messagesReceived atomic.Int64
 	messagesSent     atomic.Int64
+}
+
+func (c *Client) run(ctx context.Context) error {
+	eg, ctx := errgroup.WithContext(ctx)
+
+	eg.Go(func() error {
+		return c.readPump(ctx)
+	})
+	eg.Go(func() error {
+		c.writePump(ctx)
+		return nil
+	})
+
+	return eg.Wait()
 }
 
 func (c *Client) writePump(ctx context.Context) {
@@ -45,15 +60,10 @@ func (c *Client) writePump(ctx context.Context) {
 
 func (c *Client) readPump(ctx context.Context) error {
 	defer func() {
-		if c.room != "" {
-			hub.mutex.RLock()
-			room := hub.rooms[c.room]
-			hub.mutex.RUnlock()
-			if room != nil {
-				room.removeClient(c)
-				leaveMsg := fmt.Sprintf(`{"type":"user_left","name":"%s"}`, c.name)
-				room.broadcast([]byte(leaveMsg), nil)
-			}
+		if c.currentRoom != nil {
+			c.hub.RemoveClient(c.currentRoom, c)
+			msg, _ := json.Marshal(UserLeftMsg{Type: "user_left", Name: c.name})
+			c.hub.Broadcast(c.currentRoom, msg, nil)
 		}
 		close(c.send)
 	}()
@@ -80,7 +90,7 @@ func (c *Client) handleMessage(ctx context.Context, content []byte) error {
 
 	if c.name == "" {
 		span.SetAttributes(attribute.String("message.type", "join"))
-		return c.handleJoin(ctx, content)
+		return c.dispatchJoin(ctx, content)
 	}
 
 	var env Envelope
@@ -92,19 +102,19 @@ func (c *Client) handleMessage(ctx context.Context, content []byte) error {
 
 	switch env.Type {
 	case "join":
-		return c.handleJoin(ctx, content)
+		return c.dispatchJoin(ctx, content)
 	case "leave":
-		return c.handleLeave(ctx, content)
+		return c.dispatchLeave(ctx)
 	case "start":
-		return c.handleStart(ctx, content)
+		return c.dispatchStart(ctx)
 	case "ready":
-		return c.handleReady(ctx, content)
+		return c.dispatchReady(ctx)
 	default:
 		return fmt.Errorf("unknown message type: %s", env.Type)
 	}
 }
 
-func (c *Client) handleJoin(ctx context.Context, content []byte) error {
+func (c *Client) dispatchJoin(ctx context.Context, content []byte) error {
 	ctx, span := tracer.Start(ctx, "websocket.message.join")
 	defer span.End()
 
@@ -113,126 +123,60 @@ func (c *Client) handleJoin(ctx context.Context, content []byte) error {
 		return err
 	}
 
-	if joinMsg.Type != "join" || joinMsg.Name == "" || joinMsg.Room == "" {
-		return fmt.Errorf("invalid join message")
+	userJoinedBytes, joinedBytes, err := handleJoin(c, c.hub, joinMsg.Name, joinMsg.Room)
+	if err != nil {
+		return err
 	}
 
-	if c.room != "" {
-		hub.mutex.RLock()
-		room, exists := hub.rooms[c.room]
-		hub.mutex.RUnlock()
-		if exists {
-			room.removeClient(c)
-		}
-	}
-
-	c.name = joinMsg.Name
-	c.room = joinMsg.Room
-
-	hub.mutex.Lock()
-	room, exists := hub.rooms[joinMsg.Room]
-	if !exists {
-		room = &Room{
-			name:    joinMsg.Room,
-			clients: make(map[*Client]bool),
-		}
-		hub.rooms[joinMsg.Room] = room
-	}
-	hub.mutex.Unlock()
-
-	room.addClient(c)
-
-	userJoinedMsg := fmt.Sprintf(`{"type":"user_joined","name":"%s"}`, c.name)
-	room.broadcast([]byte(userJoinedMsg), c)
-
-	joinedMsg := fmt.Sprintf(`{"type":"joined","room":"%s"}`, room.name)
-	c.send <- []byte(joinedMsg)
+	c.hub.Broadcast(c.currentRoom, userJoinedBytes, c)
+	c.send <- joinedBytes
 
 	c.logger.InfoContext(ctx, "player joined", "name", c.name, "room", c.room)
 	return nil
 }
 
-func (c *Client) handleLeave(ctx context.Context, content []byte) error {
+func (c *Client) dispatchLeave(ctx context.Context) error {
 	ctx, span := tracer.Start(ctx, "websocket.message.leave")
 	defer span.End()
 
-	var msg LeaveMessage
-	if err := json.Unmarshal(content, &msg); err != nil {
+	leftBytes, userLeftBytes, err := handleLeave(c, c.hub)
+	if err != nil {
 		return err
 	}
 
-	if c.room != "" {
-		hub.mutex.RLock()
-		room, exists := hub.rooms[c.room]
-		hub.mutex.RUnlock()
-		if exists {
-			room.removeClient(c)
-			userLeftMsg := fmt.Sprintf(`{"type":"user_left","name":"%s"}`, c.name)
-			room.broadcast([]byte(userLeftMsg), nil)
-
-			leftMsg := fmt.Sprintf(`{"type":"left","room":"%s"}`, room.name)
-			c.send <- []byte(leftMsg)
-		}
-	}
+	c.hub.Broadcast(c.currentRoom, userLeftBytes, nil)
+	c.send <- leftBytes
 
 	c.logger.InfoContext(ctx, "player left", "name", c.name, "room", c.room)
+	c.currentRoom = nil
 	c.room = ""
 	return nil
 }
 
-func (c *Client) handleStart(ctx context.Context, content []byte) error {
+func (c *Client) dispatchStart(ctx context.Context) error {
 	ctx, span := tracer.Start(ctx, "websocket.message.start")
 	defer span.End()
 
-	var msg StartMessage
-	if err := json.Unmarshal(content, &msg); err != nil {
+	gameStartedBytes, players, err := handleStart(c, c.hub)
+	if err != nil {
 		return err
 	}
 
-	hub.mutex.RLock()
-	room, exists := hub.rooms[c.room]
-	if !exists {
-		return fmt.Errorf("client is not in a room")
-	}
-	hub.mutex.RUnlock()
-
-	room.mutex.Lock()
-	var players []string
-	for client := range room.clients {
-		players = append(players, client.name)
-	}
-	room.gameStarted = true
-	room.mutex.Unlock()
-
-	game := game.NewGame(players)
-
-	pRoles := game.Start()
-
-	room.broadcast([]byte(`{"type":"game_started"}`), nil)
-
-	c.logger.InfoContext(ctx, "game started", "room", c.room, "player_count", len(players), "roles", pRoles)
+	c.hub.Broadcast(c.currentRoom, gameStartedBytes, nil)
+	c.logger.InfoContext(ctx, "game started", "room", c.room, "player_count", len(players))
 	return nil
 }
 
-func (c *Client) handleReady(ctx context.Context, content []byte) error {
+func (c *Client) dispatchReady(ctx context.Context) error {
 	ctx, span := tracer.Start(ctx, "websocket.message.ready")
 	defer span.End()
 
-	var msg ReadyMessage
-	if err := json.Unmarshal(content, &msg); err != nil {
+	userReadyBytes, err := handleReady(c, c.hub)
+	if err != nil {
 		return err
 	}
 
-	hub.mutex.RLock()
-	room, exists := hub.rooms[c.room]
-	if !exists {
-		return fmt.Errorf("client is not in a room")
-	}
-	hub.mutex.RUnlock()
-
-	readyMsg := fmt.Sprintf(`{"type":"user_ready","name":"%s"}`, c.name)
-	room.broadcast([]byte(readyMsg), nil)
-
+	c.hub.Broadcast(c.currentRoom, userReadyBytes, nil)
 	c.logger.InfoContext(ctx, "player ready", "name", c.name, "room", c.room)
 	return nil
 }
