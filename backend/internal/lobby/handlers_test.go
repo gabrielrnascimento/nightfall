@@ -39,8 +39,6 @@ func (h *fakeHub) RemoveClient(room *Room, c *Client) {
 	}
 }
 
-// --- Tests ---
-
 func TestHandleJoin(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -64,6 +62,7 @@ func TestHandleJoin(t *testing.T) {
 				if c.currentRoom == nil {
 					t.Fatal("c.currentRoom should not be nil after join")
 				}
+
 				var msg UserJoinedMsg
 				if err := json.Unmarshal(userJoined, &msg); err != nil {
 					t.Fatalf("userJoined unmarshal: %v", err)
@@ -71,6 +70,7 @@ func TestHandleJoin(t *testing.T) {
 				if msg.Type != "user_joined" || msg.Name != "Alice" {
 					t.Errorf("unexpected userJoined: %+v", msg)
 				}
+
 				var joinedMsg JoinedMsg
 				if err := json.Unmarshal(joined, &joinedMsg); err != nil {
 					t.Fatalf("joined unmarshal: %v", err)
@@ -161,6 +161,7 @@ func TestHandleLeave(t *testing.T) {
 				if leftMsg.Type != "left" || leftMsg.Room != "lobby" {
 					t.Errorf("unexpected left: %+v", leftMsg)
 				}
+
 				var ulMsg UserLeftMsg
 				if err := json.Unmarshal(userLeft, &ulMsg); err != nil {
 					t.Fatalf("userLeft unmarshal: %v", err)
