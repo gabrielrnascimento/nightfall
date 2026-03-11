@@ -1,6 +1,6 @@
 module github.com/gabrielrnascimento/nightfall/backend
 
-go 1.24.2
+go 1.25.0
 
 require (
 	github.com/coder/websocket v1.8.14
@@ -12,6 +12,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.41.0
 	go.opentelemetry.io/otel/sdk/log v0.17.0
 	go.opentelemetry.io/otel/trace v1.41.0
+	golang.org/x/sync v0.20.0
 	google.golang.org/grpc v1.79.1
 )
 
