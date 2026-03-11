@@ -41,3 +41,11 @@ All messages are JSON with a `type` field. See `docs/WEBSOCKET_PROTOCOL.md` for 
 
 **Client → Server**: `join`, `leave`, `start`, `ready`
 **Server → Client**: `joined`, `left`, `user_joined`, `user_left`, `game_started`, `user_ready`
+
+## Development Setup
+
+After cloning, activate the version-controlled git hooks:
+```bash
+git config core.hooksPath .githooks
+```
+The pre-commit hook runs `make fmt`, `make lint`, and `make test` against `backend/` when Go files are staged.
