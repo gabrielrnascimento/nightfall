@@ -1,6 +1,9 @@
 package game
 
-import "math/rand/v2"
+import (
+	"log/slog"
+	"math/rand/v2"
+)
 
 type GameRole int
 
@@ -31,6 +34,14 @@ func (gr GameRole) MarshalText() ([]byte, error) {
 }
 
 type PlayerRoles map[GameRole]string
+
+func (pr PlayerRoles) LogValue() slog.Value {
+	attrs := make([]slog.Attr, 0, len(pr))
+	for role, player := range pr {
+		attrs = append(attrs, slog.String(role.String(), player))
+	}
+	return slog.GroupValue(attrs...)
+}
 
 type Game struct {
 	Players []string
