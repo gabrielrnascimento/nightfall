@@ -55,16 +55,16 @@ func handleLeave(c *Client, hub HubStore) ([]byte, []byte, error) {
 
 // handleStart marks the room's game as started and returns the game_started broadcast bytes.
 // Returns an error if the client is not in a room or the game has already started.
-func handleStart(c *Client, _ HubStore) ([]byte, []string, error) {
+func handleStart(c *Client, _ HubStore) ([]byte, []string, game.PlayerRoles, error) {
 	if c.currentRoom == nil {
-		return nil, nil, fmt.Errorf("not in a room")
+		return nil, nil, nil, fmt.Errorf("not in a room")
 	}
 
 	room := c.currentRoom
 	room.mutex.Lock()
 	if room.gameStarted {
 		room.mutex.Unlock()
-		return nil, nil, fmt.Errorf("game already started")
+		return nil, nil, nil, fmt.Errorf("game already started")
 	}
 	var players []string
 	for client := range room.clients {
@@ -74,14 +74,14 @@ func handleStart(c *Client, _ HubStore) ([]byte, []string, error) {
 	room.mutex.Unlock()
 
 	g := game.NewGame(players)
-	g.Start()
+	roles := g.Start()
 
 	gameStartedBytes, err := json.Marshal(GameStartedMsg{Type: "game_started"})
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 
-	return gameStartedBytes, players, nil
+	return gameStartedBytes, players, roles, nil
 }
 
 // handleReady broadcasts that a client is ready in their room.

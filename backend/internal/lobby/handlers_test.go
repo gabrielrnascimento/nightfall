@@ -3,6 +3,8 @@ package lobby
 import (
 	"encoding/json"
 	"testing"
+
+	"github.com/gabrielrnascimento/nightfall/backend/internal/game"
 )
 
 type broadcastCall struct {
@@ -201,7 +203,7 @@ func TestHandleStart(t *testing.T) {
 		name    string
 		setup   func(*Client, *fakeHub)
 		wantErr bool
-		check   func(t *testing.T, gameStarted []byte, players []string)
+		check   func(t *testing.T, gameStarted []byte, players []string, roles game.PlayerRoles)
 	}{
 		{
 			name: "start game",
@@ -212,7 +214,7 @@ func TestHandleStart(t *testing.T) {
 				c.currentRoom = room
 				room.addClient(c)
 			},
-			check: func(t *testing.T, gameStarted []byte, players []string) {
+			check: func(t *testing.T, gameStarted []byte, players []string, roles game.PlayerRoles) {
 				var msg GameStartedMsg
 				if err := json.Unmarshal(gameStarted, &msg); err != nil {
 					t.Fatalf("gameStarted unmarshal: %v", err)
@@ -222,6 +224,9 @@ func TestHandleStart(t *testing.T) {
 				}
 				if len(players) != 1 || players[0] != "Alice" {
 					t.Errorf("unexpected players: %v", players)
+				}
+				if len(roles) != 1 || roles[game.Assassin] != "Alice" {
+					t.Errorf("unexpected roles: %v", roles)
 				}
 			},
 		},
@@ -251,12 +256,12 @@ func TestHandleStart(t *testing.T) {
 				tt.setup(c, hub)
 			}
 
-			gameStarted, players, err := handleStart(c, hub)
+			gameStarted, players, roles, err := handleStart(c, hub)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("handleStart() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			if !tt.wantErr && tt.check != nil {
-				tt.check(t, gameStarted, players)
+				tt.check(t, gameStarted, players, roles)
 			}
 		})
 	}

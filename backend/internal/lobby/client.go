@@ -157,13 +157,20 @@ func (c *Client) dispatchStart(ctx context.Context) error {
 	ctx, span := tracer.Start(ctx, "websocket.message.start")
 	defer span.End()
 
-	gameStartedBytes, players, err := handleStart(c, c.hub)
+	gameStartedBytes, players, roles, err := handleStart(c, c.hub)
 	if err != nil {
 		return err
 	}
 
 	c.hub.Broadcast(c.currentRoom, gameStartedBytes, nil)
-	c.logger.InfoContext(ctx, "game started", "room", c.room, "player_count", len(players))
+
+	roleAttrs := make([]attribute.KeyValue, 0, len(roles))
+	for role, player := range roles {
+		roleAttrs = append(roleAttrs, attribute.String("game.role."+role.String(), player))
+	}
+	span.SetAttributes(append([]attribute.KeyValue{attribute.Int("game.player_count", len(players))}, roleAttrs...)...)
+
+	c.logger.InfoContext(ctx, "game started", "room", c.room, "player_count", len(players), "roles", roles)
 	return nil
 }
 
