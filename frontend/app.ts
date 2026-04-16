@@ -1,158 +1,167 @@
-let socket: WebSocket | null = null;
+// ── State ────────────────────────────────────────────────────────────────────
 
-const statusEl = document.getElementById("status") as HTMLElement;
-const logEl = document.getElementById("log") as HTMLElement;
-const wsUrlEl = document.getElementById("wsUrl") as HTMLInputElement;
-const connectBtn = document.getElementById("connectBtn") as HTMLButtonElement;
-const disconnectBtn = document.getElementById(
-  "disconnectBtn"
-) as HTMLButtonElement;
-const nameInput = document.getElementById("nameInput") as HTMLInputElement;
-const roomInput = document.getElementById("roomInput") as HTMLInputElement;
-const joinBtn = document.getElementById("joinBtn") as HTMLButtonElement;
-const leaveBtn = document.getElementById("leaveBtn") as HTMLButtonElement;
-const readyBtn = document.getElementById("readyBtn") as HTMLButtonElement;
-const startBtn = document.getElementById("startBtn") as HTMLButtonElement;
+let ws: WebSocket | null = null;
+let myName = '';
+let currentRoom = '';
+const players = new Map<string, boolean>(); // name → isReady
 
-function log(message: string) {
-  const div = document.createElement("div");
-  div.textContent = message;
-  logEl.appendChild(div);
-  logEl.scrollTop = logEl.scrollHeight;
+// ── Element references ────────────────────────────────────────────────────────
+
+const entryScreen  = document.getElementById('entry-screen')  as HTMLElement;
+const lobbyScreen  = document.getElementById('lobby-screen')  as HTMLElement;
+const gameOverlay  = document.getElementById('game-overlay')  as HTMLElement;
+const nameInput    = document.getElementById('nameInput')     as HTMLInputElement;
+const roomInput    = document.getElementById('roomInput')     as HTMLInputElement;
+const enterBtn     = document.getElementById('enterBtn')      as HTMLButtonElement;
+const errorMsg     = document.getElementById('errorMsg')      as HTMLElement;
+const roomNameEl   = document.getElementById('roomName')      as HTMLElement;
+const readyCounterEl = document.getElementById('readyCounter') as HTMLElement;
+const playerListEl = document.getElementById('playerList')    as HTMLElement;
+const readyBtn     = document.getElementById('readyBtn')      as HTMLButtonElement;
+const startBtn     = document.getElementById('startBtn')      as HTMLButtonElement;
+
+// ── Screen management ─────────────────────────────────────────────────────────
+
+function showScreen(id: 'entry' | 'lobby'): void {
+  entryScreen.classList.toggle('active', id === 'entry');
+  lobbyScreen.classList.toggle('active', id === 'lobby');
 }
 
-function setStatus(text: string) {
-  statusEl.innerHTML = "Status: <strong>" + text + "</strong>";
-}
+// ── Rendering ─────────────────────────────────────────────────────────────────
 
-function connect() {
-  const url = wsUrlEl.value.trim();
-  if (!url) return;
-
-  socket = new WebSocket(url);
-
-  socket.addEventListener("open", () => {
-    setStatus("connected");
-    log("[open] Connected to " + url);
-    connectBtn.disabled = true;
-    disconnectBtn.disabled = false;
-    joinBtn.disabled = false;
-    leaveBtn.disabled = true;
-  });
-
-  socket.addEventListener("message", (event) => {
-    log("[received] " + event.data);
-    const message = JSON.parse(event.data);
-    if (message.type === "joined") {
-      joinBtn.disabled = true;
-      leaveBtn.disabled = false;
-      nameInput.disabled = true;
-      roomInput.disabled = true;
-      readyBtn.disabled = false;
-      startBtn.disabled = false;
-    }
-    if (message.type === "left") {
-      joinBtn.disabled = false;
-      leaveBtn.disabled = true;
-      nameInput.disabled = false;
-      roomInput.disabled = false;
-      startBtn.disabled = true;
-      readyBtn.disabled = true;
-    }
-    if (message.type === "user_ready" && message.name === nameInput.value) {
-      readyBtn.disabled = true
-    }
-  });
-
-  socket.addEventListener("close", (event) => {
-    setStatus("disconnect");
-    log("[close] Code: " + event.code + ", reason: " + event.reason);
-    connectBtn.disabled = false;
-    disconnectBtn.disabled = true;
-    joinBtn.disabled = true;
-    leaveBtn.disabled = true;
-    readyBtn.disabled = true;
-    nameInput.disabled = false;
-    roomInput.disabled = false;
-  });
-
-  socket.addEventListener("error", (event) => {
-    log("[error] See console for details");
-    console.error("WebSocket error: ", event);
-  });
-}
-
-connectBtn.onclick = function () {
-  connect();
-};
-
-disconnectBtn.onclick = function () {
-  if (socket && socket.readyState === WebSocket.OPEN) {
-    socket.close(1000, "Client disconnect");
+function renderPlayers(): void {
+  if (players.size === 0) {
+    playerListEl.innerHTML = '<p class="waiting-msg">aguardando jogadores...</p>';
+    return;
   }
-};
 
-joinBtn.onclick = function () {
-  const name = nameInput.value;
-  const room = roomInput.value;
+  playerListEl.innerHTML = '';
+  players.forEach((isReady, name) => {
+    const row = document.createElement('div');
+    row.className = 'player-row';
+    if (isReady) row.classList.add('ready');
+    if (name === myName) row.classList.add('is-me');
 
-  if (!name || !room || !socket || socket.readyState !== WebSocket.OPEN) return;
+    const nameEl = document.createElement('span');
+    nameEl.className = 'player-name';
+    nameEl.textContent = name === myName ? `${name} (você)` : name;
 
-  const joinMessage: JoinMessage = {
-    type: "join",
-    name,
-    room,
+    const statusEl = document.createElement('span');
+    statusEl.className = 'player-status';
+    statusEl.textContent = isReady ? 'PRONTO' : '—';
+
+    row.appendChild(nameEl);
+    row.appendChild(statusEl);
+    playerListEl.appendChild(row);
+  });
+}
+
+function updateCounter(): void {
+  const total = players.size;
+  const ready = Array.from(players.values()).filter(Boolean).length;
+  readyCounterEl.textContent = `${ready} / ${total} prontos`;
+}
+
+// ── WebSocket message handler ─────────────────────────────────────────────────
+
+type IncomingMessage =
+  | { type: 'joined';       room: string }
+  | { type: 'user_joined';  name: string }
+  | { type: 'user_left';    name: string }
+  | { type: 'user_ready';   name: string }
+  | { type: 'game_started' }
+  | { type: 'left';         room: string };
+
+function handleMessage(raw: string): void {
+  const msg = JSON.parse(raw) as IncomingMessage;
+
+  switch (msg.type) {
+    case 'joined':
+      currentRoom = msg.room;
+      players.clear();
+      players.set(myName, false);
+      roomNameEl.textContent = currentRoom.toUpperCase();
+      updateCounter();
+      renderPlayers();
+      showScreen('lobby');
+      break;
+
+    case 'user_joined':
+      // Skip self — already added on 'joined'
+      if (msg.name === myName) break;
+      players.set(msg.name, false);
+      updateCounter();
+      renderPlayers();
+      break;
+
+    case 'user_left':
+      players.delete(msg.name);
+      updateCounter();
+      renderPlayers();
+      break;
+
+    case 'user_ready':
+      players.set(msg.name, true);
+      updateCounter();
+      renderPlayers();
+      break;
+
+    case 'game_started':
+      gameOverlay.classList.remove('hidden');
+      break;
+  }
+}
+
+// ── Entry screen ──────────────────────────────────────────────────────────────
+
+enterBtn.addEventListener('click', () => {
+  const name = nameInput.value.trim();
+  const room = roomInput.value.trim();
+
+  if (!name || !room) {
+    errorMsg.textContent = 'preencha nome e sala';
+    return;
+  }
+
+  errorMsg.textContent = '';
+  enterBtn.disabled = true;
+  enterBtn.textContent = 'CONECTANDO...';
+
+  ws = new WebSocket('ws://127.0.0.1:3001');
+
+  ws.onopen = () => {
+    myName = name;
+    ws!.send(JSON.stringify({ type: 'join', name, room }));
   };
 
-  socket.send(JSON.stringify(joinMessage));
-  log("[sent] " + JSON.stringify(joinMessage));
-};
+  ws.onmessage = (event) => handleMessage(event.data as string);
 
-leaveBtn.onclick = function () {
-  const leaveMessage: LeaveMessage = {
-    type: "leave",
+  ws.onerror = () => {
+    errorMsg.textContent = 'erro: não foi possível conectar';
+    enterBtn.disabled = false;
+    enterBtn.textContent = 'ENTRAR';
   };
-  if (!socket || socket.readyState !== WebSocket.OPEN) return;
-  socket.send(JSON.stringify(leaveMessage));
-  log("[sent] " + JSON.stringify(leaveMessage));
-};
 
-readyBtn.onclick = function () {
-  const readyMessage: ReadyMessage = {
-    type: "ready",
+  ws.onclose = () => {
+    // If we were in the lobby, return to entry
+    if (lobbyScreen.classList.contains('active')) {
+      showScreen('entry');
+      players.clear();
+    }
+    enterBtn.disabled = false;
+    enterBtn.textContent = 'ENTRAR';
   };
-  if (!socket || socket.readyState !== WebSocket.OPEN) return;
-  socket.send(JSON.stringify(readyMessage));
-  log("[sent] " + JSON.stringify(readyMessage));
-};
-
-startBtn.onclick = function () {
-  const startMessage: StartMessage = {
-    type: "start",
-  };
-  if (!socket || socket.readyState !== WebSocket.OPEN) return;
-  socket.send(JSON.stringify(startMessage));
-  log("[sent] " + JSON.stringify(startMessage));
-};
-
-window.addEventListener("load", function () {
-  connect();
 });
 
-type JoinMessage = {
-  type: string;
-  name: string;
-  room: string;
-};
+// ── Lobby actions ─────────────────────────────────────────────────────────────
 
-type LeaveMessage = {
-  type: string;
-};
+readyBtn.addEventListener('click', () => {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  ws.send(JSON.stringify({ type: 'ready' }));
+  readyBtn.disabled = true;
+});
 
-type StartMessage = {
-  type: string;
-};
-
-type ReadyMessage = {
-  type: string;
-};
+startBtn.addEventListener('click', () => {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  ws.send(JSON.stringify({ type: 'start' }));
+});

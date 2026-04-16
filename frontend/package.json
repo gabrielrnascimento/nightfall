@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "tsc --noEmitOnError app.ts --outDir dist",
+    "build": "tsc --noEmitOnError --lib es2015,dom app.ts --outDir dist",
     "build:watch": "pnpm run build --watch",
     "dev": "concurrently \"pnpm run build:watch\" \"live-server --port=3000\""
   },
