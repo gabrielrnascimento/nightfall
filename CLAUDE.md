@@ -42,6 +42,13 @@ All messages are JSON with a `type` field. See `docs/WEBSOCKET_PROTOCOL.md` for 
 **Client → Server**: `join`, `leave`, `start`, `ready`
 **Server → Client**: `joined`, `left`, `user_joined`, `user_left`, `game_started`, `user_ready`
 
+## Subagent Model Usage
+
+When spawning subagents via the `Agent` tool, choose the model based on task complexity:
+
+- **`haiku`** — Explore agents doing search, file reads, or codebase exploration with no writes
+- **`sonnet`** — Plan agents, code-reviewer agents, or any agent that writes code or makes architectural decisions
+
 ## Development Setup
 
 After cloning, activate the version-controlled git hooks:
