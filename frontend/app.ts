@@ -69,8 +69,7 @@ type IncomingMessage =
   | { type: 'user_joined';  name: string }
   | { type: 'user_left';    name: string }
   | { type: 'user_ready';   name: string }
-  | { type: 'game_started' }
-  | { type: 'left';         room: string };
+  | { type: 'game_started' };
 
 function handleMessage(raw: string): void {
   const msg = JSON.parse(raw) as IncomingMessage;
@@ -115,6 +114,7 @@ function handleMessage(raw: string): void {
 // ── Entry screen ──────────────────────────────────────────────────────────────
 
 enterBtn.addEventListener('click', () => {
+  if (ws && ws.readyState !== WebSocket.CLOSED) return;
   const name = nameInput.value.trim();
   const room = roomInput.value.trim();
 
@@ -143,10 +143,14 @@ enterBtn.addEventListener('click', () => {
   };
 
   ws.onclose = () => {
-    // If we were in the lobby, return to entry
     if (lobbyScreen.classList.contains('active')) {
-      showScreen('entry');
       players.clear();
+      myName = '';
+      currentRoom = '';
+      updateCounter();
+      renderPlayers();
+      showScreen('entry');
+      readyBtn.disabled = false;
     }
     enterBtn.disabled = false;
     enterBtn.textContent = 'ENTRAR';
